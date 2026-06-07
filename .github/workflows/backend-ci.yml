@@ -1,0 +1,31 @@
+name: Backend CI Pipeline
+
+on:
+  push:
+    branches: [ "Dev", "main" ]
+  pull_request:
+    branches: [ "Dev", "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository code
+      uses: actions/checkout@v4
+
+    - name: Set up Python Environment
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Verify Application Blueprint
+      run: |
+        cd backend
+        python -c "import main; print('FastAPI App structure is valid!')"
