@@ -1,0 +1,13 @@
+# Ignore local environment variables (Security)
+.env
+
+# Ignore Python virtual environments (Performance)
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Ignore OS files
+.DS_Store
+Thumbs.db

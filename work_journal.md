@@ -9,7 +9,7 @@
 | 07/06/2026 | Sliman | DevOps | Successfully tested local PostgreSQL container baseline, verified multi-container Docker infrastructure. | 30 min | None | test backend container
 
 ||||||||
-
+  07/06/2026 | Tamer | DevOps | Successfully provisioned a live cloud infrastructure, connecting Render (FastAPI Docker container) with Supabase (managed PostgreSQL) and verified successful public routing | 1 hour | connection between render to Supabase, Solved.
 
 
 
