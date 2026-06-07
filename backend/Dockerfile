@@ -1,20 +1,21 @@
-# 1. Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
-# 2. Set the working directory in the container
 WORKDIR /app
 
-# 3. Copy the dependencies file to the working directory
-COPY requirements.txt .
+# Create non-root user before installing anything
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
-# 4. Install any needed packages specified in requirements.txt
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 5. Copy the rest of the backend code into the container
 COPY . .
 
-# 6. Make port 8000 available to the world outside this container
+# Drop privileges
+USER appuser
+
 EXPOSE 8000
 
-# 7. Run uvicorn server when the container launches
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

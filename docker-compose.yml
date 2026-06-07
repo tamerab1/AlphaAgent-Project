@@ -1,7 +1,10 @@
 version: '3.8'
 
+networks:
+  alphaagent-net:
+    driver: bridge
+
 services:
-  # 🐍 השרת המקומי של הבאקאנד
   backend:
     build:
       context: ./backend
@@ -12,19 +15,22 @@ services:
       - ./backend:/app
     environment:
       - ENVIRONMENT=development
-      - DATABASE_URL=postgresql://postgres:local_password@local_db:5432/alpha_agent_local
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-local_password}@local_db:5432/alpha_agent_local
+      - LOG_LEVEL=INFO
     depends_on:
       local_db:
         condition: service_healthy
+    networks:
+      - alphaagent-net
+    restart: unless-stopped
 
-  # 🐘 דאטה-בייס מקומי לפיתוח מהיר ללא אינטרנט
   local_db:
     image: postgres:15-alpine
     ports:
-      - "5433:5432" # רץ על 5433 מקומית כדי לא להתנגש אם יש לך שרת אחר במחשב
+      - "5433:5432"
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=local_password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-local_password}
       - POSTGRES_DB=alpha_agent_local
     volumes:
       - postgres_local_data:/var/lib/postgresql/data
@@ -33,6 +39,46 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - alphaagent-net
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - backend
+    networks:
+      - alphaagent-net
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ALERTING_ENABLED=true
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - alphaagent-net
+    restart: unless-stopped
 
 volumes:
   postgres_local_data:
+  prometheus_data:
+  grafana_data:
