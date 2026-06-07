@@ -1,34 +1,38 @@
+version: '3.8'
 
 services:
-  # 1. Database Service (PostgreSQL)
-  db:
-    image: postgres:15-alpine
-    container_name: alphaagent_db
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: local_secure_password123
-      POSTGRES_DB: alphaagent_dev
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  # 2. Backend Service (FastAPI)
+  # 🐍 השרת המקומי של הבאקאנד
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: alphaagent_backend
-    restart: always
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend:/app
     environment:
-      - DATABASE_URL=postgresql://postgres:local_secure_password123@db:5432/alphaagent_dev
-    env_file:
-      - ./backend/.env
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://postgres:local_password@local_db:5432/alpha_agent_local
     depends_on:
-      - db
+      local_db:
+        condition: service_healthy
+
+  # 🐘 דאטה-בייס מקומי לפיתוח מהיר ללא אינטרנט
+  local_db:
+    image: postgres:15-alpine
+    ports:
+      - "5433:5432" # רץ על 5433 מקומית כדי לא להתנגש אם יש לך שרת אחר במחשב
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=local_password
+      - POSTGRES_DB=alpha_agent_local
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  postgres_data:
+  postgres_local_data:
