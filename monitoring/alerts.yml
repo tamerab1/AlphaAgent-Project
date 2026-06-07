@@ -1,0 +1,45 @@
+groups:
+  - name: alphaagent-backend
+    interval: 30s
+    rules:
+      - alert: BackendDown
+        expr: up{job="alphaagent-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AlphaAgent backend is down"
+          description: "The backend has been unreachable for more than 1 minute."
+
+      - alert: HighErrorRate
+        expr: >
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m])) * 100 > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx error rate"
+          description: "Error rate is {{ $value | printf \"%.1f\" }}% over the last 5 minutes."
+
+      - alert: SlowResponseTime
+        expr: >
+          histogram_quantile(0.95,
+            sum by (le) (rate(http_request_duration_seconds_bucket[5m]))
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow API response time"
+          description: "p95 response time is {{ $value | printf \"%.2f\" }}s (threshold: 1s)."
+
+      - alert: HighRequestRate
+        expr: sum(rate(http_requests_total[1m])) > 100
+        for: 2m
+        labels:
+          severity: info
+        annotations:
+          summary: "High request volume"
+          description: "Request rate is {{ $value | printf \"%.0f\" }} req/s."

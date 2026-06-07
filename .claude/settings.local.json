@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\slima\\\\Documents\\\\GitHub\\\\AlphaAgent-Project\" -Recurse -File)",
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object FullName)",
+      "Bash(find \"C:\\\\\\\\Users\\\\\\\\slima\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\AlphaAgent-Project\" -type f)",
+      "Bash(find \"C:\\\\\\\\Users\\\\\\\\slima\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\AlphaAgent-Project\" -type f -not -path \"*/.git/*\" -not -path \"*/.claude/*\")"
+    ]
+  }
+}

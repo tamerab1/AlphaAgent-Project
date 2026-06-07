@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    project: 'alphaagent'
+    environment: 'local'
+
+rule_files:
+  - "alerts.yml"
+
+scrape_configs:
+  - job_name: "alphaagent-backend"
+    static_configs:
+      - targets: ["backend:8000"]
+    metrics_path: "/metrics"
+    scrape_timeout: 10s
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
