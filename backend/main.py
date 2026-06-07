@@ -6,6 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
+import models  # noqa: F401  (register models on Base.metadata)
+from database import Base, engine
+
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -16,6 +19,11 @@ logger = logging.getLogger("alphaagent")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("AlphaAgent API starting up")
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables ensured")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not create database tables: %s", exc)
     yield
     logger.info("AlphaAgent API shutting down")
 
