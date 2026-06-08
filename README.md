@@ -205,5 +205,5 @@ AlphaAgent-Project/
 
 | Name   | Role              |
 |--------|-------------------|
-| Sliman | DevOps / Backend  |
-| Tamer  | Backend / AI      |
+| Sliman & Tamer | DevOps / Backend  |
+| Idan  | Backend / AI      |
