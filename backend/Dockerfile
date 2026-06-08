@@ -2,6 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+ENV PYTHONPATH=/app
+
 # Create non-root user before installing anything
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 

@@ -14,6 +14,7 @@ services:
     volumes:
       - ./backend:/app
     environment:
+      - PYTHONPATH=/app
       - ENVIRONMENT=development
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-local_password}@local_db:5432/alpha_agent_local
       - LOG_LEVEL=INFO

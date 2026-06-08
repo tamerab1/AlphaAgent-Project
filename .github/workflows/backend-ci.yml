@@ -56,9 +56,11 @@ jobs:
         pip install -r requirements-dev.txt
 
     - name: Run Tests with Coverage
+      env:
+        PYTHONPATH: ${{ github.workspace }}/backend
       run: |
         cd backend
-        pytest tests/ --cov=. --cov-report=term-missing --cov-fail-under=80
+        pytest tests/ --cov=app --cov-report=term-missing --cov-fail-under=80
 
   docker:
     name: Docker Build
