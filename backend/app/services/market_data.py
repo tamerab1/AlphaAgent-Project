@@ -1,5 +1,5 @@
-from ai.schemas import MarketData
-from config import settings
+from app.core.config import settings
+from app.schemas.agent import MarketData
 
 RSI_PERIOD = 14
 

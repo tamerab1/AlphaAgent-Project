@@ -2,8 +2,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-import models
-from database import Base, get_db
+from app import models
+from app.db.session import Base, get_db
 
 
 @pytest.fixture()
@@ -87,7 +87,7 @@ def test_get_db_yields_and_closes():
 def test_lifespan_creates_tables(monkeypatch):
     from fastapi.testclient import TestClient
 
-    import main
+    from app import main
 
     sqlite_engine = create_engine(
         "sqlite:///:memory:", connect_args={"check_same_thread": False}

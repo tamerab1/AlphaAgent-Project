@@ -6,8 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
-import models  # noqa: F401  (register models on Base.metadata)
-from database import Base, engine
+from app import models  # noqa: F401  (register models on Base.metadata)
+from app.api import api_router
+from app.db.session import Base, engine
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
@@ -44,6 +45,8 @@ app.add_middleware(
 )
 
 Instrumentator().instrument(app).expose(app)
+
+app.include_router(api_router)
 
 
 def _check_database() -> str:

@@ -3,8 +3,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ai.graph import build_graph  # noqa: E402
-from ai.schemas import MarketData, PortfolioSnapshot  # noqa: E402
+from app.agents import build_graph  # noqa: E402
+from app.schemas.agent import MarketData, PortfolioSnapshot  # noqa: E402
 
 
 def main() -> None:

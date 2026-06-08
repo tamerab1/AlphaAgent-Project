@@ -1,7 +1,9 @@
 import pytest
 
-from ai import graph, llm
-from ai.schemas import AnalystDecision, MarketData, PortfolioSnapshot
+from app.agents import graph
+from app.agents.risk import assess_risk
+from app.schemas.agent import AnalystDecision, MarketData, PortfolioSnapshot
+from app.services import llm
 
 
 @pytest.fixture(autouse=True)
@@ -71,7 +73,7 @@ def test_graph_ingest_mocks_market(monkeypatch):
 
 
 def test_risk_rejects_insufficient_cash():
-    risk = graph._assess_risk(
+    risk = assess_risk(
         _decision("BUY"), _portfolio(cash=10.0, total=100000.0), _market()
     )
     assert risk.approved is False
@@ -79,7 +81,7 @@ def test_risk_rejects_insufficient_cash():
 
 
 def test_risk_rejects_exposure_over_cap():
-    risk = graph._assess_risk(
+    risk = assess_risk(
         _decision("BUY"),
         _portfolio(cash=100000.0, total=100000.0, exposure=5000.0),
         _market(),
@@ -89,7 +91,7 @@ def test_risk_rejects_exposure_over_cap():
 
 
 def test_risk_caps_buy_at_5pct():
-    risk = graph._assess_risk(
+    risk = assess_risk(
         _decision("BUY", pct=0.5),
         _portfolio(cash=100000.0, total=100000.0),
         _market(),
@@ -99,12 +101,12 @@ def test_risk_caps_buy_at_5pct():
 
 
 def test_risk_rejects_sell_without_position():
-    risk = graph._assess_risk(_decision("SELL"), _portfolio(exposure=0.0), _market())
+    risk = assess_risk(_decision("SELL"), _portfolio(exposure=0.0), _market())
     assert risk.approved is False
 
 
 def test_risk_approves_sell_with_position():
-    risk = graph._assess_risk(
+    risk = assess_risk(
         _decision("SELL", pct=0.5), _portfolio(exposure=5000.0), _market()
     )
     assert risk.approved is True
