@@ -207,3 +207,5 @@ AlphaAgent-Project/
 |--------|-------------------|
 | Sliman & Tamer | DevOps / Backend  |
 | Idan  | Backend / AI      |
+| Ron & amit  | project managment & system analysis   |
+
