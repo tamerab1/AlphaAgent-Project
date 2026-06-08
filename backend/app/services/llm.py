@@ -1,6 +1,6 @@
 import os
 
-from ai.schemas import AnalystDecision, MarketData, PortfolioSnapshot
+from app.schemas.agent import AnalystDecision, MarketData, PortfolioSnapshot
 
 ANALYST_SYSTEM = (
     "You are a disciplined trading analyst. Given market data and the current "

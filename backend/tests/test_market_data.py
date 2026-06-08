@@ -1,5 +1,5 @@
-from ai import market_data
-from ai.schemas import MarketData
+from app.schemas.agent import MarketData
+from app.services import market_data
 
 
 def test_seed_is_deterministic():
