@@ -1,6 +1,6 @@
 from langgraph.graph import END, StateGraph
 
-from ai import llm
+from ai import llm, market_data
 from ai.schemas import (
     AgentState,
     AnalystDecision,
@@ -14,7 +14,7 @@ MAX_POSITION_PCT = 0.05
 
 def ingest_node(state: AgentState) -> AgentState:
     symbol = state["symbol"]
-    market = state.get("market") or _mock_market(symbol)
+    market = state.get("market") or market_data.get_market_data(symbol)
     portfolio = state.get("portfolio") or _default_portfolio()
     log = state.get("log", [])
     log.append(f"ingest: {symbol} price={market.price:.2f} rsi={market.rsi:.0f}")
@@ -103,16 +103,6 @@ def _assess_risk(
         approved=True,
         reason=f"Sell approved. {note}",
         adjusted_pct=min(analyst.suggested_pct, 1.0),
-    )
-
-
-def _mock_market(symbol: str) -> MarketData:
-    seed = sum(ord(c) for c in symbol)
-    return MarketData(
-        symbol=symbol,
-        price=50.0 + (seed % 200),
-        rsi=20.0 + (seed % 60),
-        headlines=[f"{symbol} in focus"],
     )
 
 

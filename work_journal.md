@@ -14,9 +14,10 @@
 
 
 ||||||||
+| 08/06/2026 | Idan | Developer / AI lead | Phase 1 backend data layer: added config (pydantic-settings), database (SQLAlchemy engine/session/Base), 4 ORM models (Portfolio, Position, Trade, AgentRun), and wired create_all into the app lifespan. Phase 2 AI flow: built the LangGraph two-agent pipeline (ingest -> analyst -> risk -> execute/reject) with structured Pydantic outputs and an offline mock fallback for demo reliability. All green on CI: 30 tests, 98% coverage, black/flake8/bandit clean. | 4 hours | langchain forced pydantic/openai version bumps (2.6.4->2.13.4, 1.14.0->2.41.0) that conflicted with DevOps pins; verified no endpoint regressions. Resolved. | Phase 3 - market data service (price + RSI + headlines with seed/mock fallback) wired into the ingest node |
 
-
-
+||||||||
+| 08/06/2026 | Idan | Developer / AI lead | Phase 3 market data service: added get_market_data (seed data by default, live yfinance price/RSI + Tavily headlines behind a flag with per-field fallback) and wired it into the ingest node. Green: 39 tests, 99% coverage. | 1.5 hours | None | Phase 4 - /analyze SSE endpoint + SQL persistence (will need a running Postgres from DevOps) |
 
 ||||||||
 

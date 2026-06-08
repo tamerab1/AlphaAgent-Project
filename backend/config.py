@@ -14,6 +14,8 @@ class Settings(BaseSettings):
         "postgresql://postgres:local_password@localhost:5432/alpha_agent_local"
     )
     openai_api_key: str = ""
+    tavily_api_key: str = ""
+    market_data_live: bool = False
     log_level: str = "INFO"
     environment: str = "development"
 

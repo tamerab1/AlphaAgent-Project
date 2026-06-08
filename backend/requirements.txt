@@ -15,3 +15,7 @@ passlib[bcrypt]==1.7.4
 langgraph==1.2.4
 langchain-core==1.4.1
 langchain-openai==1.2.2
+
+# Market data (Phase 3)
+yfinance==0.2.51
+tavily-python==0.5.0
