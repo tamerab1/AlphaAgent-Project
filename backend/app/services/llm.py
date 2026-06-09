@@ -41,14 +41,53 @@ NEWS_SENTIMENT_SYSTEM = (
 )
 
 _BULLISH_WORDS = {
-    "surge", "record", "beat", "rise", "gain", "bullish", "upgrade", "breakout",
-    "high", "growth", "rally", "strong", "buy", "partnership", "launch", "invest",
-    "milestone", "approval", "soar", "jump", "inflow", "adoption",
+    "surge",
+    "record",
+    "beat",
+    "rise",
+    "gain",
+    "bullish",
+    "upgrade",
+    "breakout",
+    "high",
+    "growth",
+    "rally",
+    "strong",
+    "buy",
+    "partnership",
+    "launch",
+    "invest",
+    "milestone",
+    "approval",
+    "soar",
+    "jump",
+    "inflow",
+    "adoption",
 }
 _BEARISH_WORDS = {
-    "probe", "warning", "cut", "loss", "decline", "crash", "sell", "downgrade",
-    "risk", "concern", "fail", "fall", "drop", "weak", "antitrust", "ban",
-    "fine", "lawsuit", "outflow", "halt", "suspend", "fraud", "breach",
+    "probe",
+    "warning",
+    "cut",
+    "loss",
+    "decline",
+    "crash",
+    "sell",
+    "downgrade",
+    "risk",
+    "concern",
+    "fail",
+    "fall",
+    "drop",
+    "weak",
+    "antitrust",
+    "ban",
+    "fine",
+    "lawsuit",
+    "outflow",
+    "halt",
+    "suspend",
+    "fraud",
+    "breach",
 }
 
 
@@ -174,7 +213,9 @@ def _llm_risk_note(
 
 def _mock_sentiment(headline: str, symbol: str) -> SentimentResult:
     h = headline.lower()
-    score = sum(1 for w in _BULLISH_WORDS if w in h) - sum(1 for w in _BEARISH_WORDS if w in h)
+    score = sum(1 for w in _BULLISH_WORDS if w in h) - sum(
+        1 for w in _BEARISH_WORDS if w in h
+    )
     if score > 0:
         return SentimentResult(
             sentiment="bullish",

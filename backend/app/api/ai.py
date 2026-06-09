@@ -61,7 +61,8 @@ def get_news(symbol: str | None = None):
                     sentiment=tag.sentiment,
                     summary=tag.summary,
                     source="Market Intelligence",
-                    published_at=datetime.now(timezone.utc) - timedelta(minutes=minutes_ago),
+                    published_at=datetime.now(timezone.utc)
+                    - timedelta(minutes=minutes_ago),
                 )
             )
     return sorted(items, key=lambda x: x.published_at, reverse=True)
