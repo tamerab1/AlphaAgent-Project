@@ -96,7 +96,9 @@ export const MOCK_NEWS: NewsItem[] = [
     symbol: "BTC",
     sentiment: "bullish",
     summary: "Institutional adoption accelerating at an unprecedented pace — a strong upside catalyst for BTC price action.",
+    sentiment_breakdown: "Bullish for BTC: record ETF inflows signal sustained institutional demand and reduce circulating sell-pressure on spot markets. Capital flowing through regulated vehicles is structurally 'sticky' — it doesn't panic-sell — meaning each new inflow cycle compresses available supply and has a disproportionate upward effect on price. This pattern historically precedes multi-week momentum runs.",
     source: "Market Intelligence",
+    url: "https://news.google.com/search?q=Bitcoin+ETF+Inflows+Record+Institutional+Demand&hl=en&gl=US&ceid=US:en",
     published_at: new Date(Date.now() - 2 * 60_000).toISOString(),
   },
   {
@@ -105,7 +107,9 @@ export const MOCK_NEWS: NewsItem[] = [
     symbol: "NVDA",
     sentiment: "bearish",
     summary: "Regulatory headwinds could pressure NVDA margins and slow enterprise AI chip adoption in Europe.",
+    sentiment_breakdown: "Bearish for NVDA: antitrust investigations introduce meaningful execution risk — potential remedies range from forced licensing to structural separation, each of which would compress margins or fragment the AI compute moat. Europe represents ~20% of hyperscaler AI capex; even partial restrictions could shave 3–5% from forward revenue estimates and cause multiple compression in the near term.",
     source: "Market Intelligence",
+    url: "https://news.google.com/search?q=Nvidia+EU+Antitrust+Probe+AI+Chip&hl=en&gl=US&ceid=US:en",
     published_at: new Date(Date.now() - 7 * 60_000).toISOString(),
   },
   {
@@ -114,7 +118,9 @@ export const MOCK_NEWS: NewsItem[] = [
     symbol: "ETH",
     sentiment: "bullish",
     summary: "On-time upgrade delivery signals strong developer momentum; potential staking yield improvements ahead.",
+    sentiment_breakdown: "Bullish for ETH: the Pectra upgrade bundle improves validator UX and is expected to raise staking APY for smaller validators, which should attract more ETH to be staked and reduce liquid supply. Fewer tokens in circulation create natural price support; additionally, on-time delivery cements the protocol's execution credibility and typically catalyses a re-rating by institutional buyers.",
     source: "Market Intelligence",
+    url: "https://news.google.com/search?q=Ethereum+Pectra+Upgrade+Roadmap+Q3&hl=en&gl=US&ceid=US:en",
     published_at: new Date(Date.now() - 14 * 60_000).toISOString(),
   },
   {
@@ -123,7 +129,9 @@ export const MOCK_NEWS: NewsItem[] = [
     symbol: "SOL",
     sentiment: "bullish",
     summary: "Surging DeFi activity on Solana is a fundamental demand driver — bullish for SOL token price.",
+    sentiment_breakdown: "Bullish for SOL: rising TVL means more capital is locked in Solana protocols, which generates fee revenue, validator rewards, and — critically — forces market participants to acquire and hold SOL to interact with the ecosystem. A fresh all-time high in TVL signals that developer and user momentum is accelerating rather than plateau-ing, which is a leading indicator of sustained token demand.",
     source: "Market Intelligence",
+    url: "https://news.google.com/search?q=Solana+DeFi+TVL+12+Billion+All+Time+High&hl=en&gl=US&ceid=US:en",
     published_at: new Date(Date.now() - 21 * 60_000).toISOString(),
   },
   {
@@ -132,7 +140,9 @@ export const MOCK_NEWS: NewsItem[] = [
     symbol: "AAPL",
     sentiment: "bullish",
     summary: "AI-driven upgrade cycle in motion — sets up strong services revenue growth over the next 4 quarters.",
+    sentiment_breakdown: "Bullish for AAPL: 300M active AI devices creates a massive installed base for premium services upsell (iCloud+, Apple One, App Store). Each iOS 19 AI feature deepens platform stickiness and drives upgrade cycles among the existing 2B+ device base, directly improving average revenue per user — Apple's highest-margin revenue stream and the key multiple driver for institutional investors.",
     source: "Market Intelligence",
+    url: "https://news.google.com/search?q=Apple+Intelligence+300M+Devices+iOS+19&hl=en&gl=US&ceid=US:en",
     published_at: new Date(Date.now() - 35 * 60_000).toISOString(),
   },
   {
@@ -141,7 +151,9 @@ export const MOCK_NEWS: NewsItem[] = [
     symbol: "BTC",
     sentiment: "bearish",
     summary: "Continued regulatory uncertainty caps near-term upside; traders reducing leverage ahead of ruling.",
+    sentiment_breakdown: "Bearish for BTC: a third SEC delay signals that regulatory clarity is further away than the market priced in, and elevated uncertainty typically causes leveraged traders to de-risk. Without spot options, large institutional players lack the hedging tools needed to take on bigger long positions — this suppresses the next leg of institutional demand and keeps a ceiling on price until a positive ruling is issued.",
     source: "Market Intelligence",
+    url: "https://news.google.com/search?q=SEC+Spot+Bitcoin+Options+Approval+Delay&hl=en&gl=US&ceid=US:en",
     published_at: new Date(Date.now() - 48 * 60_000).toISOString(),
   },
   {
@@ -150,7 +162,9 @@ export const MOCK_NEWS: NewsItem[] = [
     symbol: "MSFT",
     sentiment: "bullish",
     summary: "Cloud AI monetisation is compounding faster than expected, supporting premium valuation multiples.",
+    sentiment_breakdown: "Bullish for MSFT: 38% YoY growth in Azure AI revenue outpaces consensus estimates and is the highest-margin workload in the Azure portfolio. Doubling Copilot enterprise seats demonstrates that the AI monetisation thesis is translating to real ARR, not just trials — this justifies premium P/E multiples and sets the stage for upward EPS revisions that typically drive institutional re-allocation into the stock.",
     source: "Market Intelligence",
+    url: "https://news.google.com/search?q=Microsoft+Azure+AI+Revenue+Copilot+Growth&hl=en&gl=US&ceid=US:en",
     published_at: new Date(Date.now() - 62 * 60_000).toISOString(),
   },
   {
@@ -159,7 +173,9 @@ export const MOCK_NEWS: NewsItem[] = [
     symbol: "TSLA",
     sentiment: "bearish",
     summary: "Demand softness and margin compression remain key bear-case risks for TSLA into year-end.",
+    sentiment_breakdown: "Bearish for TSLA: consecutive delivery misses indicate structural demand erosion rather than a one-off supply issue, which undermines the high-growth narrative that supports the stock's premium valuation. Management will likely be forced to cut ASPs further to clear inventory, compressing automotive margins which are already under pressure — a double negative for forward earnings estimates.",
     source: "Market Intelligence",
+    url: "https://news.google.com/search?q=Tesla+Delivery+Miss+Consecutive+Quarter&hl=en&gl=US&ceid=US:en",
     published_at: new Date(Date.now() - 80 * 60_000).toISOString(),
   },
   {
@@ -168,7 +184,9 @@ export const MOCK_NEWS: NewsItem[] = [
     symbol: "ETH",
     sentiment: "neutral",
     summary: "Stable staking metrics reflect network maturity; no near-term supply shock expected.",
+    sentiment_breakdown: "Neutral for ETH: a steady staking ratio means the supply/demand dynamic is not changing materially — there is no incoming supply shock from mass unstaking, but also no incremental demand catalyst. This reflects network maturity rather than momentum; price action will likely remain range-bound until an external catalyst (protocol upgrade, macro shift, or ETF inflow) changes the balance.",
     source: "Market Intelligence",
+    url: "https://news.google.com/search?q=Ethereum+Staking+Ratio+27+Percent+Network&hl=en&gl=US&ceid=US:en",
     published_at: new Date(Date.now() - 95 * 60_000).toISOString(),
   },
   {
@@ -177,7 +195,9 @@ export const MOCK_NEWS: NewsItem[] = [
     symbol: "NVDA",
     sentiment: "bullish",
     summary: "Early Blackwell adoption by hyperscalers is a near-term revenue accelerant for NVDA.",
+    sentiment_breakdown: "Bullish for NVDA: Tier-1 hyperscaler sampling is typically the last step before full production orders are placed, suggesting a meaningful revenue inflection is 1–2 quarters away. Blackwell Ultra delivers significantly higher compute density per dollar than Hopper, which means hyperscalers have a clear ROI case to accelerate capex — each GPU rack upgrade is a direct NVDA revenue event at higher ASPs than the previous generation.",
     source: "Market Intelligence",
+    url: "https://news.google.com/search?q=Nvidia+Blackwell+Ultra+GPU+Cloud+Partners&hl=en&gl=US&ceid=US:en",
     published_at: new Date(Date.now() - 108 * 60_000).toISOString(),
   },
 ];

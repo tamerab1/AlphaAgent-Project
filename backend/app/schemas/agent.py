@@ -55,6 +55,13 @@ class SentimentResult(BaseModel):
 
     sentiment: Literal["bullish", "bearish", "neutral"]
     summary: str
+    sentiment_breakdown: str = Field(
+        default="",
+        description=(
+            "2-3 sentences explaining WHY this headline is bullish/bearish/neutral "
+            "for the specific asset — include the market mechanism."
+        ),
+    )
 
 
 class AgentState(TypedDict, total=False):

@@ -1,6 +1,7 @@
 import logging
 import math
 import time
+import urllib.parse
 
 from app.core.config import settings
 from app.schemas.agent import MarketData
@@ -47,13 +48,33 @@ ASSET_META = {
 def get_market_data(symbol: str) -> MarketData:
     """Price + RSI + headlines for a symbol.
 
-    Returns deterministic seed data by default so the demo never depends on a
-    live API. When ``MARKET_DATA_LIVE`` is set, fetches live price/RSI
-    (Twelve Data, then Stooq) and headlines (Tavily), falling back to seed
-    values per-field on any failure.
+    For crypto assets, fetches real-time price from Binance (public API, no
+    key) even when ``MARKET_DATA_LIVE`` is false.  If the asset-detail TTL
+    cache is warm (populated by a recent chart load) the cached RSI is reused;
+    otherwise the seed RSI is kept.  For stocks in non-live mode the full
+    seed value is returned unchanged.
     """
     seed = _seed_market_data(symbol)
     if not settings.market_data_live:
+        if _is_crypto_symbol(symbol):  # pragma: no cover
+            # Prefer the cached detail (real price + real RSI from klines).
+            cached_detail = _cache_get(f"detail:{symbol.upper()}")
+            if isinstance(cached_detail, dict):
+                return MarketData(
+                    symbol=symbol,
+                    price=cached_detail["price"],
+                    rsi=cached_detail["rsi"],
+                    headlines=seed.headlines,
+                )
+            # Fast fallback: just the current spot price from Binance.
+            try:
+                pair = BINANCE_PAIRS.get(symbol.upper(), f"{symbol.upper()}USDT")
+                price = _binance_spot_price(pair)
+                return MarketData(
+                    symbol=symbol, price=price, rsi=seed.rsi, headlines=seed.headlines
+                )
+            except Exception as exc:
+                logger.debug("binance market_data skip for %s: %s", symbol, exc)
         return seed
     key = f"md:{symbol.upper()}"  # pragma: no cover
     cached = _cache_get(key)  # pragma: no cover
@@ -99,6 +120,24 @@ def _seed_market_data(symbol: str) -> MarketData:
 
 # Symbols Twelve Data quotes as crypto pairs (e.g. BTC/USD) rather than tickers.
 CRYPTO_SYMBOLS = {"BTC", "ETH", "SOL", "DOGE", "ADA", "XRP", "BNB", "LTC"}
+
+# Binance spot ticker → USDT pair mapping (public API, no key required).
+BINANCE_PAIRS: dict[str, str] = {
+    "BTC": "BTCUSDT",
+    "ETH": "ETHUSDT",
+    "SOL": "SOLUSDT",
+    "BNB": "BNBUSDT",
+    "XRP": "XRPUSDT",
+    "ADA": "ADAUSDT",
+    "DOGE": "DOGEUSDT",
+    "LTC": "LTCUSDT",
+}
+
+
+def _is_crypto_symbol(symbol: str) -> bool:
+    """True for symbols that can be priced via Binance USDT pairs."""
+    sym = symbol.upper()
+    return sym in BINANCE_PAIRS or ASSET_META.get(sym, ("", "stock"))[1] == "crypto"
 
 
 def _live_market_data(symbol: str, seed: MarketData) -> MarketData:  # pragma: no cover
@@ -200,12 +239,151 @@ def _stooq_series(
     return closes, high, low, volume
 
 
+def get_execution_price(symbol: str) -> float:
+    """Return the freshest available spot price for trade execution.
+
+    Tries the Binance public ticker for every symbol by constructing a
+    {SYM}USDT pair (known pairs use the exact mapping from BINANCE_PAIRS).
+    Binance returns HTTP 400 immediately for unknown pairs (e.g. stocks) so
+    there is no latency penalty — the fall-through to regular market data is
+    near-instant.  No API key required.
+    """
+    sym = symbol.upper()
+    pair = BINANCE_PAIRS.get(sym, f"{sym}USDT")
+    try:
+        price = _binance_spot_price(pair)
+        logger.info("execution price %s via binance (%s): %.4f", sym, pair, price)
+        return price
+    except Exception as exc:
+        logger.debug("binance skip %s (%s): %s", sym, pair, exc)
+    return get_market_data(sym).price
+
+
+def _binance_spot_price(pair: str) -> float:  # pragma: no cover
+    """Fetch the current spot price for *pair* from the Binance public REST API."""
+    import httpx
+
+    resp = httpx.get(
+        "https://api.binance.com/api/v3/ticker/price",
+        params={"symbol": pair},
+        timeout=4.0,
+    )
+    resp.raise_for_status()
+    price = float(resp.json()["price"])
+    if price <= 0:
+        raise ValueError(f"non-positive price from Binance for {pair}: {price}")
+    return price
+
+
+def _binance_batch_quotes(symbols: list[str]) -> dict[str, dict]:  # pragma: no cover
+    """Real-time 24h ticker for crypto symbols via individual Binance calls.
+
+    Uses the single-symbol ``?symbol=BTCUSDT`` form (the same endpoint used by
+    _binance_detail_series, proven reliable) rather than the batch
+    ``?symbols=[...]`` JSON-array variant which can fail due to URL-encoding.
+    """
+    import httpx
+
+    result: dict[str, dict] = {}
+    for sym in symbols:
+        pair = BINANCE_PAIRS.get(sym, f"{sym}USDT")
+        try:
+            resp = httpx.get(
+                "https://api.binance.com/api/v3/ticker/24hr",
+                params={"symbol": pair},
+                timeout=5.0,
+            )
+            resp.raise_for_status()
+            d = resp.json()
+            price = float(d.get("lastPrice") or 0.0)
+            change = float(d.get("priceChangePercent") or 0.0)
+            if price > 0:
+                result[sym] = {"symbol": sym, "price": price, "change_24h": change}
+        except Exception as exc:
+            logger.debug("binance single quote skip %s (%s): %s", sym, pair, exc)
+    return result
+
+
+def _binance_detail_series(
+    symbol: str,
+) -> tuple[list[float], float, float, float, str]:  # pragma: no cover
+    """Daily close history + 24h stats from Binance klines (crypto, no API key)."""
+    import httpx
+
+    pair = BINANCE_PAIRS.get(symbol.upper(), f"{symbol.upper()}USDT")
+    klines_resp = httpx.get(
+        "https://api.binance.com/api/v3/klines",
+        params={"symbol": pair, "interval": "1d", "limit": 200},
+        timeout=8.0,
+    )
+    klines_resp.raise_for_status()
+    closes = [float(k[4]) for k in klines_resp.json()]
+    if not closes:
+        raise ValueError(f"empty klines for {pair}")
+    ticker_resp = httpx.get(
+        "https://api.binance.com/api/v3/ticker/24hr",
+        params={"symbol": pair},
+        timeout=5.0,
+    )
+    ticker_resp.raise_for_status()
+    t = ticker_resp.json()
+    high = float(t.get("highPrice") or closes[-1])
+    low = float(t.get("lowPrice") or closes[-1])
+    volume = float(t.get("quoteVolume") or t.get("volume") or 0.0)
+    return closes, high, low, volume, "binance"
+
+
+def get_news_data(symbol: str) -> list[dict]:
+    """Return ``[{"headline": str, "url": str}, ...]`` for a symbol.
+
+    In live mode with a Tavily key, fetches real headlines + source URLs.
+    Falls back to seed headlines with Google News search links so every
+    news card always has a working "Read Original Source" URL.
+    """
+    sym = symbol.upper()
+    if settings.market_data_live and settings.tavily_api_key:  # pragma: no cover
+        try:
+            items = _tavily_news_items(sym)
+            if items:
+                return items
+        except Exception as exc:
+            logger.warning("tavily news_data failed for %s: %s", sym, exc)
+    seed = _seed_market_data(sym)
+    return [
+        {
+            "headline": h,
+            "url": (
+                "https://news.google.com/search?q="
+                + urllib.parse.quote_plus(h)
+                + "&hl=en&gl=US&ceid=US:en"
+            ),
+        }
+        for h in seed.headlines
+    ]
+
+
 def _tavily_headlines(symbol: str, limit: int = 3) -> list[str]:  # pragma: no cover
     from tavily import TavilyClient
 
     client = TavilyClient(api_key=settings.tavily_api_key)
     resp = client.search(query=f"{symbol} stock news", topic="news", max_results=limit)
     return [r["title"] for r in resp.get("results", [])][:limit]
+
+
+def _tavily_news_items(symbol: str, limit: int = 3) -> list[dict]:  # pragma: no cover
+    """Fetch real headlines **and** their source URLs from Tavily."""
+    from tavily import TavilyClient
+
+    client = TavilyClient(api_key=settings.tavily_api_key)
+    resp = client.search(
+        query=f"{symbol} crypto stock financial news",
+        topic="news",
+        max_results=limit,
+    )
+    return [
+        {"headline": r["title"], "url": r.get("url", "")}
+        for r in resp.get("results", [])[:limit]
+    ]
 
 
 # --- Asset detail (price chart + technical indicators) -----------------------
@@ -220,10 +398,9 @@ def get_asset_detail(symbol: str) -> dict:
     the API layer (it owns the LLM call).
     """
     symbol = symbol.upper()
-    if settings.market_data_live:  # pragma: no cover
-        cached = _cache_get(f"detail:{symbol}")
-        if isinstance(cached, dict):
-            return cached
+    cached = _cache_get(f"detail:{symbol}")
+    if isinstance(cached, dict):
+        return cached
     name, asset_type = ASSET_META.get(symbol, (symbol, "stock"))
     closes, high, low, volume, source = _detail_series(symbol)
 
@@ -257,13 +434,47 @@ def get_asset_detail(symbol: str) -> dict:
 def get_quotes(symbols: list[str]) -> list[dict]:
     """Lightweight {symbol, price, change_24h} for several assets (ticker bar).
 
-    Live via one batched Twelve Data quote call (cached per symbol); falls back
-    to deterministic seed values per symbol so the bar always renders.
+    For crypto, fetches real-time prices from the Binance public 24h-ticker
+    endpoint (no API key, TTL-cached per symbol).  For stocks in non-live mode
+    returns deterministic seed values so the bar always renders.
     """
     wanted = [s.upper() for s in symbols if s.strip()]
     live: dict[str, dict] = {}
+
+    # Real-time crypto prices via Binance (always enabled, no API key).
+    crypto_syms = [s for s in wanted if _is_crypto_symbol(s)]
+    uncached_crypto: list[str] = []
+    for sym in crypto_syms:
+        # 1. Fresh quote cache (populated by previous ticker-bar calls).
+        hit = _cache_get(f"quote:{sym}")
+        if isinstance(hit, dict):
+            live[sym] = hit
+            continue
+        # 2. Detail cache (populated by chart/analysis fetches) — avoids a
+        #    redundant network round-trip when the user has already viewed the asset.
+        detail_hit = _cache_get(f"detail:{sym}")
+        if isinstance(detail_hit, dict):
+            live[sym] = {
+                "symbol": sym,
+                "price": detail_hit["price"],
+                "change_24h": detail_hit.get("change_24h", 0.0),
+            }
+            continue
+        uncached_crypto.append(sym)
+    if uncached_crypto:  # pragma: no cover
+        try:
+            for sym, quote in _binance_batch_quotes(uncached_crypto).items():
+                _cache_put(f"quote:{sym}", quote)
+                live[sym] = quote
+        except Exception as exc:
+            logger.warning("binance quotes failed: %s", exc)
+
+    # Stocks (and anything Binance couldn't quote) via Twelve Data when live.
     if settings.market_data_live:  # pragma: no cover
-        live = _live_quotes(wanted)
+        remaining = [s for s in wanted if s not in live]
+        if remaining:
+            live.update(_live_quotes(remaining))
+
     out: list[dict] = []
     for sym in wanted:
         if sym in live:
@@ -331,6 +542,12 @@ def _twelvedata_quotes(symbols: list[str]) -> dict[str, dict]:  # pragma: no cov
 
 
 def _detail_series(symbol: str) -> tuple[list[float], float, float, float, str]:
+    # Binance provides real daily OHLCV for all listed crypto — no API key.
+    if _is_crypto_symbol(symbol):  # pragma: no cover
+        try:
+            return _binance_detail_series(symbol)
+        except Exception as exc:
+            logger.warning("binance detail series failed for %s: %s", symbol, exc)
     if settings.market_data_live:  # pragma: no cover
         for name, fetch in (
             ("twelvedata", _twelvedata_series),

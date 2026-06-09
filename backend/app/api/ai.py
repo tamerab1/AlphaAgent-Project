@@ -50,10 +50,10 @@ def get_news(symbol: str | None = None):
     targets = [symbol.strip().upper()] if symbol else _DEFAULT_NEWS_SYMBOLS
     items: list[NewsItem] = []
     for sym in targets:
-        data = market_data.get_market_data(sym)
-        for headline in data.headlines:
+        for entry in market_data.get_news_data(sym):
+            headline = entry["headline"]
+            url = entry.get("url") or None
             tag = llm.analyze_headline_sentiment(headline, sym)
-            # Deterministic but varied timestamp so the feed looks live
             minutes_ago = abs(hash(headline + sym)) % 90
             items.append(
                 NewsItem(
@@ -62,7 +62,9 @@ def get_news(symbol: str | None = None):
                     symbol=sym,
                     sentiment=tag.sentiment,
                     summary=tag.summary,
+                    sentiment_breakdown=tag.sentiment_breakdown,
                     source="Market Intelligence",
+                    url=url,
                     published_at=datetime.now(timezone.utc)
                     - timedelta(minutes=minutes_ago),
                 )
@@ -186,7 +188,9 @@ def _persist(
 def _apply_trade(
     db, portfolio, symbol, analyst, risk, market, total_value, user_id=None
 ) -> None:
-    price = market.price
+    # Fetch the freshest available execution price: Binance for crypto,
+    # falling back to the already-fetched market data price.
+    price = market_data.get_execution_price(symbol)
     existing = next((p for p in portfolio.positions if p.symbol == symbol), None)
     side = analyst.action
 

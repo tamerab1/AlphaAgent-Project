@@ -36,8 +36,13 @@ RISK_SYSTEM = (
 
 NEWS_SENTIMENT_SYSTEM = (
     "You are a financial news sentiment analyst. Given a news headline and the "
-    "asset it relates to, classify the market sentiment as 'bullish', 'bearish', "
-    "or 'neutral'. Write a single sentence summarising the key market implication."
+    "asset it relates to:\n"
+    "1. Classify sentiment as 'bullish', 'bearish', or 'neutral'.\n"
+    "2. 'summary': one concise sentence stating the key market implication.\n"
+    "3. 'sentiment_breakdown': 2-3 sentences explaining specifically WHY this "
+    "headline is bullish/bearish/neutral for this particular asset — name the "
+    "market mechanism (e.g. demand/supply shift, regulatory impact, adoption "
+    "catalyst, macro headwind)."
 )
 
 _BULLISH_WORDS = {
@@ -219,16 +224,39 @@ def _mock_sentiment(headline: str, symbol: str) -> SentimentResult:
     if score > 0:
         return SentimentResult(
             sentiment="bullish",
-            summary=f"Positive catalyst detected for {symbol}; momentum may accelerate.",
+            summary=(
+                f"Positive catalyst detected for {symbol}; momentum may accelerate."
+            ),
+            sentiment_breakdown=(
+                f"Bullish for {symbol}: the headline signals increased demand or "
+                f"adoption — typically a precursor to upward price pressure as "
+                f"buyers accumulate ahead of the catalyst. Positive news cycles "
+                f"for {symbol} historically compress the bid-ask spread and "
+                f"attract fresh capital into the asset."
+            ),
         )
     if score < 0:
         return SentimentResult(
             sentiment="bearish",
-            summary=f"Negative pressure on {symbol}; watch for increased volatility.",
+            summary=(f"Negative pressure on {symbol}; watch for increased volatility."),
+            sentiment_breakdown=(
+                f"Bearish for {symbol}: the headline introduces uncertainty or "
+                f"downside risk that may trigger defensive selling. Negative "
+                f"catalysts — particularly regulatory or macro ones — tend to "
+                f"reduce risk appetite across the board, with {symbol} facing "
+                f"elevated short-term sell pressure until the issue resolves."
+            ),
         )
     return SentimentResult(
         sentiment="neutral",
-        summary=f"Informational update on {symbol}; no immediate directional bias.",
+        summary=(f"Informational update on {symbol}; no immediate directional bias."),
+        sentiment_breakdown=(
+            f"Neutral for {symbol}: the headline is informational rather than "
+            f"directional — it contains neither strong positive nor negative "
+            f"signals for price action. Market participants are likely to "
+            f"acknowledge the update without materially changing their {symbol} "
+            f"exposure in the short term."
+        ),
     )
 
 

@@ -93,7 +93,10 @@ def test_get_quotes_seed():
     quotes = market_data.get_quotes(["AAPL", "BTC", ""])
     assert {q["symbol"] for q in quotes} == {"AAPL", "BTC"}
     assert all(q["price"] > 0 for q in quotes)
-    assert all(q["change_24h"] == 0.0 for q in quotes)
+    # Stocks use seed data (change_24h is always 0.0 in non-live mode).
+    # Crypto may use Binance real-time data so change_24h can be non-zero.
+    aapl = next(q for q in quotes if q["symbol"] == "AAPL")
+    assert aapl["change_24h"] == 0.0
 
 
 def test_cache_put_get_roundtrip():

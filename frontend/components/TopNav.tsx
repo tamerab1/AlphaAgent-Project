@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Activity, ChevronDown, User, Settings, LogOut, Wifi, WifiOff } from "lucide-react";
 import type { TradingMode } from "@/lib/api";
 
@@ -12,9 +14,16 @@ interface TopNavProps {
   onSignOut?: () => void;
 }
 
+const NAV_LINKS = [
+  { href: "/",       label: "Dashboard" },
+  { href: "/trades", label: "Trades"    },
+  { href: "/news",   label: "News"      },
+];
+
 export default function TopNav({ mode, onModeChange, apiConnected, portfolioUser, onSignOut }: TopNavProps) {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
   const isLive = mode === "live";
 
   useEffect(() => {
@@ -30,7 +39,7 @@ export default function TopNav({ mode, onModeChange, apiConnected, portfolioUser
   return (
     <nav className="sticky top-0 z-50 flex h-14 items-center justify-between border-b border-border bg-surface px-4 lg:px-6">
 
-      {/* ── Logo ── */}
+      {/* ── Logo + Nav links ── */}
       <div className="flex items-center gap-2.5">
         <div className="flex h-7 w-7 items-center justify-center rounded bg-accent">
           <Activity className="h-4 w-4 text-bg font-bold" strokeWidth={2.5} />
@@ -42,9 +51,26 @@ export default function TopNav({ mode, onModeChange, apiConnected, portfolioUser
         <span className="hidden rounded bg-accent/15 px-1.5 py-[3px] text-[9px] font-bold uppercase tracking-widest text-accent sm:block">
           AI PRO
         </span>
+
+        {/* Navigation links */}
+        <div className="ml-3 hidden items-center gap-0.5 md:flex">
+          {NAV_LINKS.map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                pathname === href
+                  ? "bg-white/8 text-white"
+                  : "text-muted hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
       </div>
 
-      {/* ── SRS Trading Switch ── */}
+      {/* ── Paper/Live switch ── */}
       <div className="flex items-center gap-3">
         <div
           className={`flex items-center gap-1 rounded-full border p-1 transition-colors duration-500 ${

@@ -23,7 +23,22 @@
       "Bash(npx tsc *)",
       "Bash(node -e \"require\\('@supabase/supabase-js'\\); require\\('@supabase/auth-ui-react'\\); require\\('@supabase/auth-ui-shared'\\); console.log\\('all packages resolve OK'\\)\")",
       "Bash(node -e \"const p=require\\('@supabase/auth-ui-react/package.json'\\); console.log\\('auth-ui-react:', p.version\\)\")",
-      "Bash(node -e \"const p=require\\('@supabase/supabase-js/package.json'\\); console.log\\('supabase-js:', p.version\\)\")"
+      "Bash(node -e \"const p=require\\('@supabase/supabase-js/package.json'\\); console.log\\('supabase-js:', p.version\\)\")",
+      "Bash(python -m black app/schemas/api.py app/api/users.py)",
+      "Bash(npx next *)",
+      "Bash(python -m black app/schemas/agent.py app/schemas/api.py app/services/llm.py app/services/market_data.py app/api/ai.py app/api/users.py)",
+      "Bash(python -m black app/services/market_data.py)",
+      "Bash(python -m black --check app/services/market_data.py)",
+      "Bash(python -m pytest tests/test_market_data.py -v)",
+      "Bash(python -m pytest --tb=short -q)",
+      "Bash(Get-ChildItem -Recurse -Filter \"*.py\" \"C:\\\\Users\\\\tamer\\\\AlphaAgentV1\\\\AlphaAgent-Project\\\\backend\")",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(python -m pytest tests/test_auth.py -v)",
+      "Bash(python -m pytest -v)",
+      "Bash(python -m pytest)",
+      "Bash(python -m mypy tests/test_auth.py --ignore-missing-imports --show-error-codes)",
+      "Bash(.venv/Scripts/python.exe -c \"import pyright\")",
+      "Bash(.venv/Scripts/python.exe -m py_compile tests/test_auth.py)"
     ]
   }
 }

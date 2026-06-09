@@ -111,11 +111,19 @@ class NewsItem(BaseModel):
     symbol: str
     sentiment: Literal["bullish", "bearish", "neutral"]
     summary: str
+    sentiment_breakdown: str = ""
     source: str
+    url: Optional[str] = None
     published_at: datetime
 
 
 # --- Trading -----------------------------------------------------------------
+class ManualTradeRequest(BaseModel):
+    symbol: str
+    side: Literal["BUY", "SELL"]
+    usd_amount: float
+
+
 class ToggleModeRequest(BaseModel):
     mode: Literal["paper", "live"]
 

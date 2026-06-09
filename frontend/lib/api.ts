@@ -80,7 +80,9 @@ export interface NewsItem {
   symbol: string;
   sentiment: "bullish" | "bearish" | "neutral";
   summary: string;
+  sentiment_breakdown?: string;
   source: string;
+  url?: string | null;
   published_at: string;
 }
 
@@ -110,6 +112,12 @@ export interface AssetDetail {
 }
 
 export type TradingMode = "paper" | "live";
+
+export interface ManualTradeRequest {
+  symbol: string;
+  side: "BUY" | "SELL";
+  usd_amount: number;
+}
 
 export interface ToggleModeResponse {
   mode: string;
@@ -226,5 +234,16 @@ export function toggleMode(
   return request<ToggleModeResponse>(`/api/trading/${portfolioId}/toggle-mode`, {
     method: "POST",
     body: JSON.stringify({ mode }),
+  });
+}
+
+export function getMyTrades(): Promise<TradeOut[]> {
+  return request<TradeOut[]>("/api/v1/users/me/trades");
+}
+
+export function executeTrade(req: ManualTradeRequest): Promise<TradeOut> {
+  return request<TradeOut>("/api/v1/users/me/trade", {
+    method: "POST",
+    body: JSON.stringify(req),
   });
 }

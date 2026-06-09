@@ -9,6 +9,7 @@ import {
 } from "@/lib/api";
 import { MOCK_STATUS, MOCK_LOGS, MOCK_TRADES } from "@/lib/mockData";
 import { getAsset, type AssetType, type AssetInfo } from "@/lib/mockAssets";
+import { getCachedAsset } from "@/lib/assetUtils";
 import { useSession } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabase";
 
@@ -80,11 +81,19 @@ export default function DashboardPage() {
         const detail = await getAssetDetail(selectedAsset);
         if (active) setAssetData(toAssetInfo(detail));
       } catch {
-        if (active) setAssetData(getAsset(selectedAsset)); // offline fallback
+        // offline fallback: check static list then session-cached dynamic assets
+        if (active) setAssetData(getAsset(selectedAsset) ?? getCachedAsset(selectedAsset));
       }
     })();
     return () => { active = false; };
   }, [selectedAsset]);
+
+  // Keep assetType in sync with whatever asset is loaded. This covers dynamic
+  // symbols (e.g. DOGE, MATIC) that aren't in the static ASSETS list so
+  // handleAssetChange can't set the type immediately.
+  useEffect(() => {
+    if (assetData?.type) setAssetType(assetData.type);
+  }, [assetData]);
 
   // ── Backend data loading ───────────────────────────────────────────────────
   const load = useCallback(async (id: number) => {
@@ -126,7 +135,9 @@ export default function DashboardPage() {
 
   const handleAssetChange = (symbol: string) => {
     setSelectedAsset(symbol);
-    const a = getAsset(symbol);
+    // For known assets set the type immediately; dynamic assets will be synced
+    // by the assetData effect once the fetch resolves.
+    const a = getAsset(symbol) ?? getCachedAsset(symbol);
     if (a) setAssetType(a.type);
   };
 
