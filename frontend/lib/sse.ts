@@ -14,6 +14,16 @@ export interface MarketData {
   price: number;
   rsi: number;
   headlines: string[];
+  macd_signal?: string | null;
+  ma50?: number | null;
+  ma200?: number | null;
+}
+
+export interface DebateArgument {
+  stance: "bull" | "bear";
+  thesis: string;
+  key_points: string[];
+  conviction: number;
 }
 
 // One decoded SSE frame. `node` is the graph node name, or "done" for the
@@ -21,13 +31,17 @@ export interface MarketData {
 export interface AnalyzeEvent {
   node:
     | "ingest"
-    | "analyst_agent"
+    | "bull_agent"
+    | "bear_agent"
+    | "judge_agent"
     | "risk_agent"
     | "execute"
     | "log_rejection"
     | "done";
   message?: string;
   market?: MarketData;
+  bull?: DebateArgument;
+  bear?: DebateArgument;
   analyst?: AnalystDecision;
   risk?: RiskDecision;
   executed?: boolean;

@@ -18,6 +18,7 @@ def _deterministic_env(monkeypatch):
     mock LLM so the suite never hits the network.
     """
     monkeypatch.setattr(settings, "market_data_live", False)
+    monkeypatch.setattr(settings, "openai_api_key", "")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
 
