@@ -54,6 +54,16 @@ export interface AgentRunOut {
   created_at: string;
 }
 
+export interface TradeOut {
+  id: number;
+  symbol: string;
+  side: string;
+  qty: number;
+  price: number;
+  rationale: string | null;
+  created_at: string;
+}
+
 export type TradingMode = "paper" | "live";
 
 export interface ToggleModeResponse {
@@ -96,6 +106,10 @@ export function getPortfolioStatus(
 
 export function getAgentLogs(portfolioId: number): Promise<AgentRunOut[]> {
   return request<AgentRunOut[]>(`/api/ai/${portfolioId}/logs`);
+}
+
+export function getTrades(portfolioId: number): Promise<TradeOut[]> {
+  return request<TradeOut[]>(`/api/portfolio/${portfolioId}/trades`);
 }
 
 export function toggleMode(

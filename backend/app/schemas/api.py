@@ -35,6 +35,16 @@ class PortfolioStatus(BaseModel):
     positions: list[PositionOut]
 
 
+class TradeOut(BaseModel):
+    id: int
+    symbol: str
+    side: str
+    qty: float
+    price: float
+    rationale: Optional[str]
+    created_at: datetime
+
+
 # --- AI ----------------------------------------------------------------------
 class AnalyzeRequest(BaseModel):
     symbol: str

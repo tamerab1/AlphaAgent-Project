@@ -5,14 +5,17 @@ import {
   createPortfolio,
   getAgentLogs,
   getPortfolioStatus,
+  getTrades,
   type AgentRunOut,
   type PortfolioStatus,
+  type TradeOut,
 } from "@/lib/api";
 import SummaryCards from "@/components/SummaryCards";
 import PositionsTable from "@/components/PositionsTable";
 import ActionLog from "@/components/ActionLog";
 import ModeToggle from "@/components/ModeToggle";
 import AnalysisPanel from "@/components/AnalysisPanel";
+import TradeHistory from "@/components/TradeHistory";
 
 const STORAGE_KEY = "alphaagent_portfolio_id";
 
@@ -36,16 +39,19 @@ export default function DashboardPage() {
   const [portfolioId, setPortfolioId] = useState<number | null>(null);
   const [status, setStatus] = useState<PortfolioStatus | null>(null);
   const [logs, setLogs] = useState<AgentRunOut[]>([]);
+  const [trades, setTrades] = useState<TradeOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async (id: number) => {
-    const [statusRes, logsRes] = await Promise.all([
+    const [statusRes, logsRes, tradesRes] = await Promise.all([
       getPortfolioStatus(id),
       getAgentLogs(id),
+      getTrades(id),
     ]);
     setStatus(statusRes);
     setLogs(logsRes);
+    setTrades(tradesRes);
   }, []);
 
   useEffect(() => {
@@ -103,6 +109,7 @@ export default function DashboardPage() {
             <PositionsTable positions={status.positions} />
             <ActionLog runs={logs} />
           </div>
+          <TradeHistory trades={trades} />
         </div>
       )}
     </main>
