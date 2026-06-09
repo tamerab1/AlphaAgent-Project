@@ -79,10 +79,24 @@ export default function DashboardPage() {
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-accent">AlphaAgent</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-accent">AlphaAgent</h1>
+            <span className="rounded-full bg-positive/15 px-2.5 py-0.5 text-xs font-medium text-positive">
+              Paper trading
+            </span>
+          </div>
           <p className="text-sm text-muted">AI Trading Portfolio Manager</p>
         </div>
-        {portfolioId !== null && <ModeToggle portfolioId={portfolioId} />}
+        {portfolioId !== null && (
+          <div className="flex items-center gap-3">
+            {status?.user && (
+              <span className="text-sm text-muted">
+                Portfolio: <span className="text-white">{status.user}</span>
+              </span>
+            )}
+            <ModeToggle portfolioId={portfolioId} />
+          </div>
+        )}
       </header>
 
       {loading && (

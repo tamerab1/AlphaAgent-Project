@@ -125,3 +125,40 @@ def test_analyze_404_for_missing_portfolio(api_client):
     client, _ = api_client
     resp = client.post("/api/ai/999/analyze-chart", json={"symbol": "AAPL"})
     assert resp.status_code == 404
+
+
+def test_analyze_accepts_chart_image(api_client):
+    client, _ = api_client
+    pid = _create(client)
+    resp = client.post(
+        f"/api/ai/{pid}/analyze-chart",
+        json={"symbol": "AAPL", "chart_image": "data:image/png;base64,AAAA"},
+    )
+    assert resp.status_code == 200
+    assert '"node": "done"' in resp.text
+
+    logs = client.get(f"/api/ai/{pid}/logs").json()
+    assert "chart image" in logs[0]["analyst"]["reasoning"].lower()
+
+
+def test_read_chart_returns_reading(api_client, monkeypatch):
+    from app.schemas.agent import ChartReading
+
+    client, _ = api_client
+    monkeypatch.setattr(
+        llm,
+        "read_chart",
+        lambda image, symbol=None: ChartReading(summary="patched read", bias="bullish"),
+    )
+    body = client.post(
+        "/api/ai/read-chart",
+        json={"chart_image": "data:image/png;base64,AAAA", "symbol": "AAPL"},
+    ).json()
+    assert body["summary"] == "patched read"
+    assert body["bias"] == "bullish"
+
+
+def test_read_chart_rejects_empty_image(api_client):
+    client, _ = api_client
+    resp = client.post("/api/ai/read-chart", json={"chart_image": ""})
+    assert resp.status_code == 400

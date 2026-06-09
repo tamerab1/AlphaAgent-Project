@@ -1,4 +1,4 @@
-from typing import Literal, TypedDict
+from typing import Literal, Optional, TypedDict
 
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,8 @@ class AnalystDecision(BaseModel):
     reasoning: str
     confidence: float = Field(ge=0.0, le=1.0)
     suggested_pct: float = Field(ge=0.0, le=1.0)
+    target_price: Optional[float] = Field(default=None, ge=0.0)
+    stop_loss: Optional[float] = Field(default=None, ge=0.0)
 
 
 class RiskDecision(BaseModel):
@@ -19,6 +21,16 @@ class RiskDecision(BaseModel):
     approved: bool
     reason: str
     adjusted_pct: float = Field(ge=0.0, le=1.0)
+
+
+class ChartReading(BaseModel):
+    """Visual read of an uploaded chart screenshot (multimodal analyst)."""
+
+    summary: str
+    support_levels: list[float] = Field(default_factory=list)
+    resistance_levels: list[float] = Field(default_factory=list)
+    patterns: list[str] = Field(default_factory=list)
+    bias: Literal["bullish", "bearish", "neutral"] = "neutral"
 
 
 class MarketData(BaseModel):
@@ -42,6 +54,7 @@ class AgentState(TypedDict, total=False):
     """Mutable state threaded through the LangGraph flow."""
 
     symbol: str
+    chart_image: Optional[str]
     market: MarketData
     portfolio: PortfolioSnapshot
     analyst: AnalystDecision

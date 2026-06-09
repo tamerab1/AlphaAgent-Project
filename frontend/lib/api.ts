@@ -37,6 +37,8 @@ export interface AnalystDecision {
   reasoning: string;
   confidence: number;
   suggested_pct: number;
+  target_price: number | null;
+  stop_loss: number | null;
 }
 
 export interface RiskDecision {
@@ -62,6 +64,14 @@ export interface TradeOut {
   price: number;
   rationale: string | null;
   created_at: string;
+}
+
+export interface ChartReading {
+  summary: string;
+  support_levels: number[];
+  resistance_levels: number[];
+  patterns: string[];
+  bias: "bullish" | "bearish" | "neutral";
 }
 
 export type TradingMode = "paper" | "live";
@@ -110,6 +120,16 @@ export function getAgentLogs(portfolioId: number): Promise<AgentRunOut[]> {
 
 export function getTrades(portfolioId: number): Promise<TradeOut[]> {
   return request<TradeOut[]>(`/api/portfolio/${portfolioId}/trades`);
+}
+
+export function readChart(
+  chartImage: string,
+  symbol?: string
+): Promise<ChartReading> {
+  return request<ChartReading>("/api/ai/read-chart", {
+    method: "POST",
+    body: JSON.stringify({ chart_image: chartImage, symbol: symbol ?? null }),
+  });
 }
 
 export function toggleMode(

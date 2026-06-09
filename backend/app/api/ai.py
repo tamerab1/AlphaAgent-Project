@@ -1,6 +1,6 @@
 import json
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -8,9 +8,9 @@ from app.agents import build_graph
 from app.api.deps import get_portfolio_or_404, loads_json
 from app.db.session import get_db
 from app.models import AgentRun, Portfolio, Position, Trade
-from app.schemas.agent import PortfolioSnapshot
-from app.schemas.api import AgentRunOut, AnalyzeRequest
-from app.services import market_data
+from app.schemas.agent import ChartReading, PortfolioSnapshot
+from app.schemas.api import AgentRunOut, AnalyzeRequest, ChartReadRequest
+from app.services import llm, market_data
 
 router = APIRouter(prefix="/api", tags=["ai"])
 
@@ -39,6 +39,14 @@ def ai_logs(portfolio_id: int, db: Session = Depends(get_db)):
     ]
 
 
+@router.post("/ai/read-chart", response_model=ChartReading)
+def ai_read_chart(body: ChartReadRequest):
+    """Multimodal visual read of a chart image, independent of the trade flow."""
+    if not body.chart_image:
+        raise HTTPException(status_code=400, detail="chart_image is required")
+    return llm.read_chart(body.chart_image, body.symbol)
+
+
 @router.post("/ai/{portfolio_id}/analyze-chart")
 async def analyze_chart(
     portfolio_id: int, body: AnalyzeRequest, db: Session = Depends(get_db)
@@ -50,7 +58,11 @@ async def analyze_chart(
     # the engine now and open a fresh session bound to it when we persist.
     bind = db.get_bind()
     graph = build_graph()
-    state = {"symbol": body.symbol, "portfolio": snapshot}
+    state = {
+        "symbol": body.symbol,
+        "portfolio": snapshot,
+        "chart_image": body.chart_image,
+    }
 
     async def event_stream():
         final: dict = {}

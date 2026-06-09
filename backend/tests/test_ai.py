@@ -43,6 +43,43 @@ def test_mock_analyze_hold_midrange():
     assert llm.analyze(_market(rsi=50.0), _portfolio()).action == "HOLD"
 
 
+def test_mock_analyze_buy_sets_target_and_stop():
+    d = llm.analyze(_market(rsi=20.0, price=100.0), _portfolio())
+    assert d.target_price == 110.0
+    assert d.stop_loss == 95.0
+
+
+def test_mock_analyze_sell_sets_target_and_stop():
+    d = llm.analyze(_market(rsi=80.0, price=100.0), _portfolio())
+    assert d.target_price == 90.0
+    assert d.stop_loss == 105.0
+
+
+def test_mock_analyze_hold_has_no_target():
+    d = llm.analyze(_market(rsi=50.0), _portfolio())
+    assert d.target_price is None
+    assert d.stop_loss is None
+
+
+def test_mock_analyze_with_chart_image_notes_it():
+    d = llm.analyze(
+        _market(rsi=20.0),
+        _portfolio(),
+        chart_image="data:image/png;base64,AAAA",
+    )
+    assert d.action == "BUY"
+    assert "chart image" in d.reasoning.lower()
+
+
+def test_mock_read_chart_offline_placeholder():
+    from app.schemas.agent import ChartReading
+
+    reading = llm.read_chart("data:image/png;base64,AAAA", "AAPL")
+    assert isinstance(reading, ChartReading)
+    assert reading.bias == "neutral"
+    assert "AAPL" in reading.summary
+
+
 def test_risk_note_mock():
     note = llm.risk_note(_market(), _decision("BUY"))
     assert "risk note" in note.lower()
