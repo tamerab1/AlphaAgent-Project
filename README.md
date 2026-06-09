@@ -34,7 +34,7 @@ AlphaAgent is an AI-powered backend system for automated trading analysis and po
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/Sliman1012/AlphaAgent-Project.git
+git clone https://github.com/tamerab1/AlphaAgent-Project.git
 cd AlphaAgent-Project
 
 # 2. Set up environment variables
