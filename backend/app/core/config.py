@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     market_data_live: bool = False
     log_level: str = "INFO"
     environment: str = "development"
+    # Comma-separated allowed CORS origins. "*" (default) allows any origin
+    # without credentials; set to the deployed frontend URL(s) in production.
+    cors_origins: str = "*"
 
 
 settings = Settings()
