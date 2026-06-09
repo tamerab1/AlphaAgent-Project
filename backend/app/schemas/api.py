@@ -67,6 +67,43 @@ class AgentRunOut(BaseModel):
     created_at: datetime
 
 
+# --- Market / asset detail ---------------------------------------------------
+class Quote(BaseModel):
+    symbol: str
+    price: float
+    change_24h: float
+
+
+class PricePoint(BaseModel):
+    t: int
+    p: float
+
+
+class AssetDetail(BaseModel):
+    symbol: str
+    name: str
+    type: Literal["crypto", "stock"]
+    price: float
+    change_24h: float
+    volume_24h: float
+    high_24h: float
+    low_24h: float
+    rsi: float
+    macd_signal: Literal["bullish", "bearish", "neutral"]
+    ma50: float
+    ma200: float
+    support: float
+    resistance: float
+    sentiment_score: float
+    ai_action: Literal["BUY", "SELL", "HOLD"]
+    ai_confidence: float
+    ai_reasoning: str
+    ai_target: float
+    ai_stop_loss: float
+    source: str  # "twelvedata" | "stooq" | "seed"
+    history: list[PricePoint]
+
+
 # --- News --------------------------------------------------------------------
 class NewsItem(BaseModel):
     id: str
