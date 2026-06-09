@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Search, X, TrendingUp, TrendingDown } from "lucide-react";
+import { getQuotes } from "@/lib/api";
 import {
   ASSETS,
   CRYPTO_ASSETS,
@@ -102,10 +103,37 @@ export default function AssetSelectorBar({
 }: AssetSelectorBarProps) {
   const [query,  setQuery]  = useState("");
   const [open,   setOpen]   = useState(false);
+  const [liveQuotes, setLiveQuotes] = useState<
+    Record<string, { price: number; change24h: number }>
+  >({});
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
   const visibleAssets = assetType === "crypto" ? CRYPTO_ASSETS : STOCK_ASSETS;
+
+  // Pull live prices for the visible tickers in one batched call (cached on the
+  // backend). Falls back silently to the mock prices on error/offline.
+  useEffect(() => {
+    let active = true;
+    const symbols = visibleAssets.map((a) => a.symbol);
+    (async () => {
+      try {
+        const quotes = await getQuotes(symbols);
+        if (!active) return;
+        const map: Record<string, { price: number; change24h: number }> = {};
+        for (const q of quotes) {
+          map[q.symbol] = { price: q.price, change24h: q.change_24h };
+        }
+        setLiveQuotes(map);
+      } catch {
+        /* keep mock prices */
+      }
+    })();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assetType]);
 
   const results = useMemo(() => {
     if (!query.trim()) return [];
@@ -163,14 +191,20 @@ export default function AssetSelectorBar({
 
         {/* ── Horizontal ticker scroll ── */}
         <div className="scrollbar-thin flex flex-1 items-center gap-1.5 overflow-x-auto py-0.5">
-          {visibleAssets.map((a) => (
-            <AssetChip
-              key={a.symbol}
-              asset={a}
-              active={a.symbol === selectedAsset}
-              onClick={() => onAssetChange(a.symbol)}
-            />
-          ))}
+          {visibleAssets.map((a) => {
+            const live = liveQuotes[a.symbol];
+            const chip = live
+              ? { ...a, price: live.price, change24h: live.change24h }
+              : a;
+            return (
+              <AssetChip
+                key={a.symbol}
+                asset={chip}
+                active={a.symbol === selectedAsset}
+                onClick={() => onAssetChange(a.symbol)}
+              />
+            );
+          })}
         </div>
 
         {/* ── Global search ── */}
