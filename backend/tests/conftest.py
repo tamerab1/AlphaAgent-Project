@@ -4,8 +4,21 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
 from app.db.session import Base, get_db
 from app.main import app
+
+
+@pytest.fixture(autouse=True)
+def _deterministic_env(monkeypatch):
+    """Keep tests offline and deterministic regardless of a local .env.
+
+    A developer's backend/.env may set MARKET_DATA_LIVE=true or an API key;
+    pydantic-settings reads it automatically. Force seed market data and the
+    mock LLM so the suite never hits the network.
+    """
+    monkeypatch.setattr(settings, "market_data_live", False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
 
 @pytest.fixture(scope="session")

@@ -3,10 +3,27 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   createPortfolio, getAgentLogs, getPortfolioStatus, getTrades, toggleMode,
+  getAssetDetail,
   type AgentRunOut, type PortfolioStatus, type TradeOut, type TradingMode,
+  type AssetDetail,
 } from "@/lib/api";
 import { MOCK_STATUS, MOCK_LOGS, MOCK_TRADES } from "@/lib/mockData";
-import { getAsset, type AssetType } from "@/lib/mockAssets";
+import { getAsset, type AssetType, type AssetInfo } from "@/lib/mockAssets";
+
+// Map the backend's snake_case AssetDetail onto the widgets' AssetInfo shape.
+function toAssetInfo(d: AssetDetail): AssetInfo {
+  return {
+    symbol: d.symbol, name: d.name, type: d.type,
+    price: d.price, change24h: d.change_24h, volume24h: d.volume_24h,
+    high24h: d.high_24h, low24h: d.low_24h,
+    rsi: d.rsi, macdSignal: d.macd_signal,
+    ma50: d.ma50, ma200: d.ma200, support: d.support, resistance: d.resistance,
+    sentimentScore: d.sentiment_score,
+    aiAction: d.ai_action, aiConfidence: d.ai_confidence,
+    aiReasoning: d.ai_reasoning, aiTarget: d.ai_target, aiStopLoss: d.ai_stop_loss,
+    history: d.history,
+  };
+}
 
 import TopNav             from "@/components/TopNav";
 import AssetSelectorBar   from "@/components/AssetSelectorBar";
@@ -44,8 +61,23 @@ export default function DashboardPage() {
   // ── Global asset context ───────────────────────────────────────────────────
   const [selectedAsset, setSelectedAsset] = useState("BTC");
   const [assetType,     setAssetType]     = useState<AssetType>("crypto");
+  // Live asset detail (price chart + AI widget); mock as the initial/fallback.
+  const [assetData,     setAssetData]     = useState<AssetInfo | undefined>(
+    getAsset("BTC"),
+  );
 
-  const assetData = getAsset(selectedAsset);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const detail = await getAssetDetail(selectedAsset);
+        if (active) setAssetData(toAssetInfo(detail));
+      } catch {
+        if (active) setAssetData(getAsset(selectedAsset)); // offline fallback
+      }
+    })();
+    return () => { active = false; };
+  }, [selectedAsset]);
 
   // ── Backend data loading ───────────────────────────────────────────────────
   const load = useCallback(async (id: number) => {

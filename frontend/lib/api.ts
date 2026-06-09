@@ -84,6 +84,31 @@ export interface NewsItem {
   published_at: string;
 }
 
+export interface AssetDetail {
+  symbol: string;
+  name: string;
+  type: "crypto" | "stock";
+  price: number;
+  change_24h: number;
+  volume_24h: number;
+  high_24h: number;
+  low_24h: number;
+  rsi: number;
+  macd_signal: "bullish" | "bearish" | "neutral";
+  ma50: number;
+  ma200: number;
+  support: number;
+  resistance: number;
+  sentiment_score: number;
+  ai_action: "BUY" | "SELL" | "HOLD";
+  ai_confidence: number;
+  ai_reasoning: string;
+  ai_target: number;
+  ai_stop_loss: number;
+  source: string;
+  history: { t: number; p: number }[];
+}
+
 export type TradingMode = "paper" | "live";
 
 export interface ToggleModeResponse {
@@ -145,6 +170,21 @@ export function readChart(
 export function getNews(symbol?: string): Promise<NewsItem[]> {
   const params = symbol ? `?symbol=${encodeURIComponent(symbol)}` : "";
   return request<NewsItem[]>(`/api/ai/news${params}`);
+}
+
+export function getAssetDetail(symbol: string): Promise<AssetDetail> {
+  return request<AssetDetail>(`/api/market/${encodeURIComponent(symbol)}`);
+}
+
+export interface Quote {
+  symbol: string;
+  price: number;
+  change_24h: number;
+}
+
+export function getQuotes(symbols: string[]): Promise<Quote[]> {
+  const q = encodeURIComponent(symbols.join(","));
+  return request<Quote[]>(`/api/market/quotes?symbols=${q}`);
 }
 
 export function toggleMode(

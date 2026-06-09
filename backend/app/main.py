@@ -8,6 +8,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from app import models  # noqa: F401  (register models on Base.metadata)
 from app.api import api_router
+from app.core.config import settings
 from app.db.session import Base, engine
 
 logging.basicConfig(
@@ -20,6 +21,14 @@ logger = logging.getLogger("alphaagent")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("AlphaAgent API starting up")
+    logger.info(
+        "Market data mode: %s",
+        (
+            "LIVE (Stooq/yfinance + Tavily)"
+            if settings.market_data_live
+            else "SEED (deterministic)"
+        ),
+    )
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables ensured")
@@ -36,10 +45,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Parse allowed origins from settings. We don't use cookies/credentials, so
+# allow_credentials stays False — that keeps a "*" default spec-valid and lets
+# production pin CORS_ORIGINS to the deployed frontend URL(s).
+_cors_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins or ["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

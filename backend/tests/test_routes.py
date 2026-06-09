@@ -101,3 +101,34 @@ def test_toggle_mode_live_blocked(api_client):
     body = client.post(f"/api/trading/{pid}/toggle-mode", json={"mode": "live"}).json()
     assert body["mode"] == "paper"
     assert "disabled" in body["message"].lower()
+
+
+def test_market_detail_seed(api_client):
+    client, _ = api_client
+    body = client.get("/api/market/AAPL").json()
+    assert body["symbol"] == "AAPL"
+    assert body["name"] == "Apple"
+    assert body["type"] == "stock"
+    assert body["price"] > 0
+    assert body["source"] == "seed"
+    assert body["macd_signal"] in {"bullish", "bearish", "neutral"}
+    assert 0.0 <= body["rsi"] <= 100.0
+    assert 0.0 <= body["sentiment_score"] <= 100.0
+    assert body["ai_action"] in {"BUY", "SELL", "HOLD"}
+    assert body["ai_target"] > 0 and body["ai_stop_loss"] > 0
+    assert len(body["history"]) >= 30
+
+
+def test_market_detail_crypto(api_client):
+    client, _ = api_client
+    body = client.get("/api/market/BTC").json()
+    assert body["type"] == "crypto"
+    assert body["name"] == "Bitcoin"
+
+
+def test_market_quotes_seed(api_client):
+    client, _ = api_client
+    body = client.get("/api/market/quotes?symbols=AAPL,BTC,TSLA").json()
+    assert len(body) == 3
+    assert {q["symbol"] for q in body} == {"AAPL", "BTC", "TSLA"}
+    assert all(q["price"] > 0 for q in body)
