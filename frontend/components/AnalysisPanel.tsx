@@ -1,7 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { readChart, type ChartReading } from "@/lib/api";
 import { streamAnalyze, type AnalyzeEvent } from "@/lib/sse";
+import ChartReadingCard from "@/components/ChartReadingCard";
 
 const NODE_LABELS: Record<string, string> = {
   ingest: "Ingest market data",
@@ -27,6 +29,8 @@ export default function AnalysisPanel({
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chartImage, setChartImage] = useState<string | null>(null);
+  const [reading, setReading] = useState<ChartReading | null>(null);
+  const [readingLoading, setReadingLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -37,6 +41,7 @@ export default function AnalysisPanel({
       setError("Please choose a PNG or JPG image.");
       return;
     }
+    setReading(null);
     const reader = new FileReader();
     reader.onload = () => setChartImage(reader.result as string);
     reader.readAsDataURL(file); // -> "data:image/png;base64,..."
@@ -44,9 +49,26 @@ export default function AnalysisPanel({
 
   function clearImage() {
     setChartImage(null);
+    setReading(null);
     if (fileRef.current) fileRef.current.value = "";
   }
 
+  // Step 1: a standalone visual read of the chart, before the trade decision.
+  async function analyzeChart() {
+    if (!chartImage || readingLoading) return;
+    setReadingLoading(true);
+    setError(null);
+    try {
+      const sym = symbol.trim().toUpperCase() || undefined;
+      setReading(await readChart(chartImage, sym));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Chart read failed.");
+    } finally {
+      setReadingLoading(false);
+    }
+  }
+
+  // Step 2: the full agent pipeline (also receives the chart image if attached).
   async function run() {
     const sym = symbol.trim().toUpperCase();
     if (!sym || running) return;
@@ -76,10 +98,58 @@ export default function AnalysisPanel({
 
   return (
     <div className="rounded-lg border border-border bg-surface p-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <h2 className="text-lg font-semibold">Run Analysis</h2>
+
+      {/* Step 1 — Visual chart analysis (multimodal), before the trade decision. */}
+      <div className="mt-3 rounded-md border border-border bg-bg p-4">
+        <p className="text-sm font-medium">1 · Visual chart analysis (optional)</p>
+        <p className="text-xs text-muted">
+          Upload a chart screenshot; the AI reads support/resistance and patterns.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <label className="cursor-pointer rounded-md border border-border px-3 py-1.5 text-sm text-muted transition hover:text-white">
+            {chartImage ? "Change chart" : "Attach chart"}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg"
+              onChange={onPickImage}
+              className="hidden"
+            />
+          </label>
+          {chartImage && (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={chartImage}
+                alt="chart preview"
+                className="h-10 w-16 rounded border border-border object-cover"
+              />
+              <button
+                onClick={analyzeChart}
+                disabled={readingLoading}
+                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+              >
+                {readingLoading ? "Reading…" : "Analyze chart"}
+              </button>
+              <button
+                onClick={clearImage}
+                disabled={readingLoading}
+                className="text-xs text-muted underline hover:text-white"
+              >
+                Remove
+              </button>
+            </>
+          )}
+        </div>
+        {reading && <ChartReadingCard reading={reading} />}
+      </div>
+
+      {/* Step 2 — Agent trade analysis (live SSE). */}
+      <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold">Run Analysis</h2>
-          <p className="text-sm text-muted">
+          <p className="text-sm font-medium">2 · Agent trade analysis</p>
+          <p className="text-xs text-muted">
             Stream the analyst → risk → execute reasoning live.
           </p>
         </div>
@@ -117,37 +187,6 @@ export default function AnalysisPanel({
             {s}
           </button>
         ))}
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <label className="cursor-pointer rounded-md border border-border px-3 py-1.5 text-sm text-muted transition hover:text-white">
-          {chartImage ? "Change chart" : "Attach chart (optional)"}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/png,image/jpeg"
-            onChange={onPickImage}
-            disabled={running}
-            className="hidden"
-          />
-        </label>
-        {chartImage && (
-          <div className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={chartImage}
-              alt="chart preview"
-              className="h-10 w-16 rounded border border-border object-cover"
-            />
-            <button
-              onClick={clearImage}
-              disabled={running}
-              className="text-xs text-muted underline hover:text-white"
-            >
-              Remove
-            </button>
-          </div>
-        )}
       </div>
 
       {error && (

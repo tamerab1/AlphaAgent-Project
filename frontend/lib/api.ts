@@ -66,6 +66,14 @@ export interface TradeOut {
   created_at: string;
 }
 
+export interface ChartReading {
+  summary: string;
+  support_levels: number[];
+  resistance_levels: number[];
+  patterns: string[];
+  bias: "bullish" | "bearish" | "neutral";
+}
+
 export type TradingMode = "paper" | "live";
 
 export interface ToggleModeResponse {
@@ -112,6 +120,16 @@ export function getAgentLogs(portfolioId: number): Promise<AgentRunOut[]> {
 
 export function getTrades(portfolioId: number): Promise<TradeOut[]> {
   return request<TradeOut[]>(`/api/portfolio/${portfolioId}/trades`);
+}
+
+export function readChart(
+  chartImage: string,
+  symbol?: string
+): Promise<ChartReading> {
+  return request<ChartReading>("/api/ai/read-chart", {
+    method: "POST",
+    body: JSON.stringify({ chart_image: chartImage, symbol: symbol ?? null }),
+  });
 }
 
 export function toggleMode(
