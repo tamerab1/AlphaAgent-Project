@@ -111,6 +111,15 @@ export interface AssetDetail {
   history: { t: number; p: number }[];
 }
 
+export interface Candle {
+  t: number;  // Unix timestamp (seconds)
+  o: number;  // Open
+  h: number;  // High
+  l: number;  // Low
+  c: number;  // Close
+  v: number;  // Quote volume
+}
+
 export type TradingMode = "paper" | "live";
 
 export interface ManualTradeRequest {
@@ -214,6 +223,16 @@ export function getNews(symbol?: string): Promise<NewsItem[]> {
 
 export function getAssetDetail(symbol: string): Promise<AssetDetail> {
   return request<AssetDetail>(`/api/market/${encodeURIComponent(symbol)}`);
+}
+
+export function getKlines(
+  symbol: string,
+  interval = "1d",
+  limit = 100,
+): Promise<Candle[]> {
+  return request<Candle[]>(
+    `/api/market/${encodeURIComponent(symbol)}/klines?interval=${interval}&limit=${limit}`,
+  );
 }
 
 export interface Quote {

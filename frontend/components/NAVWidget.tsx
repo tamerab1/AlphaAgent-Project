@@ -46,7 +46,7 @@ export default function NAVWidget({ status }: NAVWidgetProps) {
     : 0;
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-1 lg:grid-cols-4">
 
       {/* ── Total NAV (spans 2 cols on all sizes) ── */}
       <div className="col-span-2 flex items-center justify-between overflow-hidden rounded-xl border border-border bg-surface p-4">

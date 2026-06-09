@@ -333,6 +333,80 @@ def _binance_detail_series(
     return closes, high, low, volume, "binance"
 
 
+def get_klines(symbol: str, interval: str = "1d", limit: int = 100) -> list[dict]:
+    """Return OHLCV candles: Binance for crypto, synthetic for stocks/offline."""
+    sym = symbol.upper()
+    cache_key = f"klines:{sym}:{interval}:{limit}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached  # type: ignore[return-value]
+
+    candles: list[dict] = []
+    if _is_crypto_symbol(sym):  # pragma: no cover
+        try:
+            candles = _binance_klines(sym, interval, limit)
+        except Exception as exc:
+            logger.debug("binance klines failed for %s: %s", sym, exc)
+
+    if not candles:
+        candles = _synthetic_klines(sym, limit)
+
+    _cache_put(cache_key, candles)
+    return candles
+
+
+def _binance_klines(
+    symbol: str, interval: str = "1d", limit: int = 100
+) -> list[dict]:  # pragma: no cover
+    """Fetch full OHLCV candles from Binance public klines endpoint."""
+    import httpx
+
+    pair = BINANCE_PAIRS.get(symbol, f"{symbol}USDT")
+    resp = httpx.get(
+        "https://api.binance.com/api/v3/klines",
+        params={"symbol": pair, "interval": interval, "limit": limit},
+        timeout=8.0,
+    )
+    resp.raise_for_status()
+    candles = []
+    for k in resp.json():
+        candles.append(
+            {
+                "t": int(k[0]) // 1000,  # ms → seconds
+                "o": float(k[1]),
+                "h": float(k[2]),
+                "l": float(k[3]),
+                "c": float(k[4]),
+                "v": round(float(k[7]), 2),  # quote asset volume
+            }
+        )
+    return candles
+
+
+def _synthetic_klines(symbol: str, limit: int = 100) -> list[dict]:
+    """Deterministic OHLCV candles derived from seed prices (stocks / offline)."""
+    seed_int = sum(ord(c) for c in symbol)
+    now = int(time.time())
+    one_day = 86400
+    end_price = round(50.0 + (seed_int % 200), 2)
+    start_price = end_price / 1.05
+    candles = []
+    for i in range(limit):
+        pct = i / max(limit - 1, 1)
+        base = start_price + (end_price - start_price) * pct
+        s = (seed_int + i * 7) % 99
+        close = round(base * (1 + math.sin(s * 0.14) * 0.015), 4)
+        open_p = round(base * (1 + math.sin(s * 0.11 + 1) * 0.012), 4)
+        high = round(max(open_p, close) * (1 + abs(math.sin(s * 0.3)) * 0.008), 4)
+        low = round(min(open_p, close) * (1 - abs(math.cos(s * 0.3)) * 0.008), 4)
+        volume = round(close * 1_000_000 * (0.5 + abs(math.sin(s * 0.5)) * 0.5), 2)
+        t = now - (limit - i) * one_day
+        candles.append(
+            {"t": t, "o": open_p, "h": high, "l": low, "c": close, "v": volume}
+        )
+    return candles
+
+
 def get_news_data(symbol: str) -> list[dict]:
     """Return ``[{"headline": str, "url": str}, ...]`` for a symbol.
 

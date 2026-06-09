@@ -38,7 +38,12 @@
       "Bash(python -m pytest)",
       "Bash(python -m mypy tests/test_auth.py --ignore-missing-imports --show-error-codes)",
       "Bash(.venv/Scripts/python.exe -c \"import pyright\")",
-      "Bash(.venv/Scripts/python.exe -m py_compile tests/test_auth.py)"
+      "Bash(.venv/Scripts/python.exe -m py_compile tests/test_auth.py)",
+      "Bash(findstr lucide *)",
+      "Bash(node -e \"const l = require\\('./node_modules/lucide-react/package.json'\\); console.log\\(l.version\\)\")",
+      "Bash(node -e \"const l = require\\('lucide-react'\\); const icons = ['LayoutDashboard','ArrowLeftRight','Newspaper','Menu','X','Home','BookOpen']; icons.forEach\\(i => console.log\\(i + ':', !!l[i]\\)\\)\")",
+      "Bash(python -c \"from app.schemas.api import Candle; from app.services.market_data import get_klines, _synthetic_klines; from app.api.market import market_klines; print\\('All backend imports OK'\\)\")",
+      "Bash(python -m pytest tests/ -x -q --tb=short)"
     ]
   }
 }
