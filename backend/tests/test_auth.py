@@ -26,11 +26,11 @@ from sqlalchemy.pool import StaticPool
 # Profile.id (stored as String(36) in SQLite) can be bound in queries.
 sqlite3.register_adapter(UUID, str)
 
-from app.api.deps import get_current_user_id
-from app.core.config import settings
-from app.db.session import Base, get_db
-from app.main import app
-from app.models.portfolio import Portfolio
+from app.api.deps import get_current_user_id  # noqa: E402
+from app.core.config import settings  # noqa: E402
+from app.db.session import Base, get_db  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models.portfolio import Portfolio  # noqa: E402
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
