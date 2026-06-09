@@ -1,5 +1,9 @@
+import logging
+
 from app.core.config import settings
 from app.schemas.agent import MarketData
+
+logger = logging.getLogger("alphaagent")
 
 RSI_PERIOD = 14
 
@@ -52,15 +56,49 @@ def _seed_market_data(symbol: str) -> MarketData:
 
 
 def _live_market_data(symbol: str, seed: MarketData) -> MarketData:  # pragma: no cover
-    try:
-        price, rsi = _yfinance_price_rsi(symbol)
-    except Exception:
-        price, rsi = seed.price, seed.rsi
+    price, rsi, source = seed.price, seed.rsi, "seed"
+    for name, fetch in (("stooq", _stooq_price_rsi), ("yfinance", _yfinance_price_rsi)):
+        try:
+            price, rsi = fetch(symbol)
+            source = name
+            break
+        except Exception as exc:
+            logger.warning("live price via %s failed for %s: %s", name, symbol, exc)
+    logger.info(
+        "live market data %s: price=%.2f rsi=%.0f (source=%s)",
+        symbol,
+        price,
+        rsi,
+        source,
+    )
     try:
         headlines = _tavily_headlines(symbol) or seed.headlines
-    except Exception:
+        logger.info("live headlines for %s: %d via tavily", symbol, len(headlines))
+    except Exception as exc:
+        logger.warning("tavily failed for %s: %s", symbol, exc)
         headlines = seed.headlines
     return MarketData(symbol=symbol, price=price, rsi=rsi, headlines=headlines)
+
+
+def _stooq_price_rsi(symbol: str) -> tuple[float, float]:  # pragma: no cover
+    """Daily price + RSI from Stooq's free CSV endpoint (no API key)."""
+    import httpx
+
+    url = f"https://stooq.com/q/d/l/?s={symbol.lower()}.us&i=d"
+    resp = httpx.get(url, timeout=8.0, follow_redirects=True)
+    resp.raise_for_status()
+    rows = resp.text.strip().splitlines()
+    if len(rows) < 2 or rows[0].lower().startswith("<"):
+        raise ValueError(f"no Stooq data for {symbol}")
+    # CSV columns: Date,Open,High,Low,Close,Volume
+    closes = [
+        float(parts[4])
+        for parts in (r.split(",") for r in rows[1:])
+        if len(parts) >= 5 and parts[4] not in ("", "N/D")
+    ]
+    if not closes:
+        raise ValueError(f"no closes for {symbol}")
+    return float(closes[-1]), _compute_rsi(closes)
 
 
 def _yfinance_price_rsi(symbol: str) -> tuple[float, float]:  # pragma: no cover

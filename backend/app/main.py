@@ -21,6 +21,14 @@ logger = logging.getLogger("alphaagent")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("AlphaAgent API starting up")
+    logger.info(
+        "Market data mode: %s",
+        (
+            "LIVE (Stooq/yfinance + Tavily)"
+            if settings.market_data_live
+            else "SEED (deterministic)"
+        ),
+    )
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables ensured")
