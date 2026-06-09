@@ -2,15 +2,17 @@
 
 import { useRef, useState, useEffect } from "react";
 import { Zap, ImagePlus, X, Play, ChevronRight } from "lucide-react";
-import { readChart, type ChartReading } from "@/lib/api";
-import { streamAnalyze, type AnalyzeEvent } from "@/lib/sse";
+import { readChart, type ChartReading, type AnalystDecision, type RiskDecision } from "@/lib/api";
+import { streamAnalyze, type AnalyzeEvent, type DebateArgument } from "@/lib/sse";
 import ChartReadingCard from "@/components/ChartReadingCard";
 
 const NODE_LABELS: Record<string, string> = {
-  ingest:        "Ingesting market data",
-  analyst_agent: "Analyst agent",
+  ingest:        "Market data ingested",
+  bull_agent:    "Bull analyst",
+  bear_agent:    "Bear analyst",
+  judge_agent:   "Judge verdict",
   risk_agent:    "Risk manager",
-  execute:       "Executing trade",
+  execute:       "Trade executed",
   log_rejection: "Trade rejected",
   done:          "Pipeline complete",
 };
@@ -138,8 +140,8 @@ export default function AnalysisPanel({
         {/* Step 2 — Agent pipeline */}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold text-white">2 · Agent trade analysis</p>
-            <p className="mt-0.5 text-[11px] text-muted">Stream the analyst → risk → execute reasoning live.</p>
+            <p className="text-xs font-semibold text-white">2 · Multi-agent trade analysis</p>
+            <p className="mt-0.5 text-[11px] text-muted">Bull vs bear debate → judge → risk manager → execute, streamed live.</p>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -188,40 +190,95 @@ export default function AnalysisPanel({
 
         {/* Live event stream */}
         {events.length > 0 && (
-          <ol className="space-y-2 border-t border-border pt-3">
-            {events.map((ev, i) => (
-              <li key={i} className="animate-slide-up flex gap-2.5">
-                <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />
-                <div className="min-w-0">
-                  <p className="text-xs font-medium text-white">
-                    {NODE_LABELS[ev.node] ?? ev.node}
-                    {ev.node === "analyst_agent" && ev.analyst && (
-                      <span className={`ml-2 font-bold ${ev.analyst.action === "BUY" ? "text-positive" : ev.analyst.action === "SELL" ? "text-negative" : "text-muted"}`}>
-                        {ev.analyst.action} ({Math.round(ev.analyst.confidence * 100)}%)
-                      </span>
-                    )}
-                    {ev.node === "risk_agent" && ev.risk && (
-                      <span className={`ml-2 ${ev.risk.approved ? "text-positive" : "text-negative"}`}>
-                        {ev.risk.approved ? "approved" : "rejected"}
-                      </span>
-                    )}
-                  </p>
-                  {ev.message && <p className="text-[11px] text-muted">{ev.message}</p>}
-                  {ev.node === "ingest" && ev.market && (
-                    <p className="text-[11px] text-muted">
-                      Price ${ev.market.price.toFixed(2)} · RSI {ev.market.rsi.toFixed(1)}
-                    </p>
-                  )}
-                  {ev.node === "analyst_agent" && ev.analyst?.target_price != null && ev.analyst?.stop_loss != null && (
-                    <p className="text-[11px] text-muted">
-                      Target <span className="text-positive">${ev.analyst.target_price.toFixed(2)}</span>
-                      {" · "}Stop <span className="text-negative">${ev.analyst.stop_loss.toFixed(2)}</span>
-                    </p>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ol>
+          <div className="space-y-2 border-t border-border pt-3">
+            {events.map((ev, i) => {
+              if (ev.node === "bull_agent" && ev.bull) return <DebateCard key={i} arg={ev.bull} />;
+              if (ev.node === "bear_agent" && ev.bear) return <DebateCard key={i} arg={ev.bear} />;
+              if (ev.node === "judge_agent" && ev.analyst) return <JudgeBanner key={i} d={ev.analyst} />;
+              if (ev.node === "risk_agent" && ev.risk) return <RiskRow key={i} r={ev.risk} />;
+              return <GenericRow key={i} ev={ev} />;
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DebateCard({ arg }: { arg: DebateArgument }) {
+  const bull = arg.stance === "bull";
+  return (
+    <div className={`animate-slide-up rounded-lg border p-3 ${bull ? "border-positive/30 bg-positive/5" : "border-negative/30 bg-negative/5"}`}>
+      <div className="flex items-center justify-between">
+        <span className={`text-xs font-bold ${bull ? "text-positive" : "text-negative"}`}>
+          {bull ? "🐂 BULL CASE" : "🐻 BEAR CASE"}
+        </span>
+        <span className="text-[10px] font-medium text-muted">conviction {Math.round(arg.conviction * 100)}%</span>
+      </div>
+      <p className="mt-1 text-[11px] leading-relaxed text-white">{arg.thesis}</p>
+      {arg.key_points?.length > 0 && (
+        <ul className="mt-1.5 space-y-1">
+          {arg.key_points.map((p, j) => (
+            <li key={j} className="flex gap-1.5 text-[11px] text-muted">
+              <span className={bull ? "text-positive" : "text-negative"}>•</span>
+              <span>{p}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function JudgeBanner({ d }: { d: AnalystDecision }) {
+  const color = d.action === "BUY" ? "text-positive" : d.action === "SELL" ? "text-negative" : "text-muted";
+  return (
+    <div className="animate-slide-up rounded-lg border border-accent/40 bg-accent/5 p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-accent">⚖️ JUDGE VERDICT</span>
+        <span className={`text-sm font-bold ${color}`}>{d.action} · {Math.round(d.confidence * 100)}%</span>
+      </div>
+      <p className="mt-1 text-[11px] leading-relaxed text-muted">{d.reasoning}</p>
+      {d.target_price != null && d.stop_loss != null && (
+        <p className="mt-1.5 text-[11px]">
+          Target <span className="font-semibold text-positive">${d.target_price.toFixed(2)}</span>
+          {" · "}Stop <span className="font-semibold text-negative">${d.stop_loss.toFixed(2)}</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RiskRow({ r }: { r: RiskDecision }) {
+  return (
+    <div className="animate-slide-up flex gap-2.5">
+      <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-white">
+          Risk manager{" "}
+          <span className={r.approved ? "text-positive" : "text-negative"}>
+            {r.approved ? `approved · ${Math.round(r.adjusted_pct * 100)}% of book` : "rejected"}
+          </span>
+        </p>
+        <p className="text-[11px] text-muted">{r.reason}</p>
+      </div>
+    </div>
+  );
+}
+
+function GenericRow({ ev }: { ev: AnalyzeEvent }) {
+  return (
+    <div className="animate-slide-up flex gap-2.5">
+      <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-white">{NODE_LABELS[ev.node] ?? ev.node}</p>
+        {ev.node === "ingest" && ev.market ? (
+          <p className="text-[11px] text-muted">
+            Price ${ev.market.price.toFixed(2)} · RSI {ev.market.rsi.toFixed(1)}
+            {ev.market.macd_signal ? ` · MACD ${ev.market.macd_signal}` : ""}
+          </p>
+        ) : (
+          ev.message && <p className="text-[11px] text-muted">{ev.message}</p>
         )}
       </div>
     </div>
