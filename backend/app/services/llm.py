@@ -6,6 +6,7 @@ from app.schemas.agent import (
     ChartReading,
     MarketData,
     PortfolioSnapshot,
+    SentimentResult,
 )
 
 ANALYST_SYSTEM = (
@@ -33,6 +34,24 @@ RISK_SYSTEM = (
 )
 
 
+NEWS_SENTIMENT_SYSTEM = (
+    "You are a financial news sentiment analyst. Given a news headline and the "
+    "asset it relates to, classify the market sentiment as 'bullish', 'bearish', "
+    "or 'neutral'. Write a single sentence summarising the key market implication."
+)
+
+_BULLISH_WORDS = {
+    "surge", "record", "beat", "rise", "gain", "bullish", "upgrade", "breakout",
+    "high", "growth", "rally", "strong", "buy", "partnership", "launch", "invest",
+    "milestone", "approval", "soar", "jump", "inflow", "adoption",
+}
+_BEARISH_WORDS = {
+    "probe", "warning", "cut", "loss", "decline", "crash", "sell", "downgrade",
+    "risk", "concern", "fail", "fall", "drop", "weak", "antitrust", "ban",
+    "fine", "lawsuit", "outflow", "halt", "suspend", "fraud", "breach",
+}
+
+
 def _has_api_key() -> bool:
     return bool(os.getenv("OPENAI_API_KEY"))
 
@@ -58,6 +77,13 @@ def risk_note(market: MarketData, decision: AnalystDecision) -> str:
     if _has_api_key():
         return _llm_risk_note(market, decision)  # pragma: no cover
     return _mock_risk_note(market, decision)
+
+
+def analyze_headline_sentiment(headline: str, symbol: str) -> SentimentResult:
+    """Classify a news headline as bullish / bearish / neutral (mock when offline)."""
+    if _has_api_key():
+        return _llm_sentiment(headline, symbol)  # pragma: no cover
+    return _mock_sentiment(headline, symbol)
 
 
 def read_chart(chart_image: str, symbol: Optional[str] = None) -> ChartReading:
@@ -144,6 +170,35 @@ def _llm_risk_note(
         f"({decision.suggested_pct:.0%}). RSI {market.rsi:.0f}."
     )
     return llm.invoke(prompt).content
+
+
+def _mock_sentiment(headline: str, symbol: str) -> SentimentResult:
+    h = headline.lower()
+    score = sum(1 for w in _BULLISH_WORDS if w in h) - sum(1 for w in _BEARISH_WORDS if w in h)
+    if score > 0:
+        return SentimentResult(
+            sentiment="bullish",
+            summary=f"Positive catalyst detected for {symbol}; momentum may accelerate.",
+        )
+    if score < 0:
+        return SentimentResult(
+            sentiment="bearish",
+            summary=f"Negative pressure on {symbol}; watch for increased volatility.",
+        )
+    return SentimentResult(
+        sentiment="neutral",
+        summary=f"Informational update on {symbol}; no immediate directional bias.",
+    )
+
+
+def _llm_sentiment(headline: str, symbol: str) -> SentimentResult:  # pragma: no cover
+    from langchain_openai import ChatOpenAI
+
+    structured = ChatOpenAI(model="gpt-4o-mini", temperature=0).with_structured_output(
+        SentimentResult
+    )
+    prompt = f"{NEWS_SENTIMENT_SYSTEM}\n\nSymbol: {symbol}\nHeadline: {headline}"
+    return structured.invoke(prompt)
 
 
 def _mock_read_chart(symbol: Optional[str]) -> ChartReading:

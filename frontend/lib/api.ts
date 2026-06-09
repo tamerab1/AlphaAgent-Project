@@ -74,6 +74,16 @@ export interface ChartReading {
   bias: "bullish" | "bearish" | "neutral";
 }
 
+export interface NewsItem {
+  id: string;
+  headline: string;
+  symbol: string;
+  sentiment: "bullish" | "bearish" | "neutral";
+  summary: string;
+  source: string;
+  published_at: string;
+}
+
 export type TradingMode = "paper" | "live";
 
 export interface ToggleModeResponse {
@@ -130,6 +140,11 @@ export function readChart(
     method: "POST",
     body: JSON.stringify({ chart_image: chartImage, symbol: symbol ?? null }),
   });
+}
+
+export function getNews(symbol?: string): Promise<NewsItem[]> {
+  const params = symbol ? `?symbol=${encodeURIComponent(symbol)}` : "";
+  return request<NewsItem[]>(`/api/ai/news${params}`);
 }
 
 export function toggleMode(

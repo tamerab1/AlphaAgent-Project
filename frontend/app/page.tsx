@@ -2,33 +2,29 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  createPortfolio,
-  getAgentLogs,
-  getPortfolioStatus,
-  getTrades,
-  type AgentRunOut,
-  type PortfolioStatus,
-  type TradeOut,
+  createPortfolio, getAgentLogs, getPortfolioStatus, getTrades, toggleMode,
+  type AgentRunOut, type PortfolioStatus, type TradeOut, type TradingMode,
 } from "@/lib/api";
-import SummaryCards from "@/components/SummaryCards";
-import PositionsTable from "@/components/PositionsTable";
-import ActionLog from "@/components/ActionLog";
-import ModeToggle from "@/components/ModeToggle";
-import AnalysisPanel from "@/components/AnalysisPanel";
-import TradeHistory from "@/components/TradeHistory";
+import { MOCK_STATUS, MOCK_LOGS, MOCK_TRADES } from "@/lib/mockData";
+import { getAsset, type AssetType } from "@/lib/mockAssets";
+
+import TopNav             from "@/components/TopNav";
+import AssetSelectorBar   from "@/components/AssetSelectorBar";
+import NAVWidget          from "@/components/NAVWidget";
+import PriceChart         from "@/components/PriceChart";
+import AIAnalysisWidget   from "@/components/AIAnalysisWidget";
+import PortfolioWidget    from "@/components/PortfolioWidget";
+import AILogsWidget       from "@/components/AILogsWidget";
+import TradeHistoryWidget from "@/components/TradeHistoryWidget";
+import AnalysisPanel      from "@/components/AnalysisPanel";
+import NewsWidget         from "@/components/NewsWidget";
 
 const STORAGE_KEY = "alphaagent_portfolio_id";
 
-// Resolve a portfolio to display: reuse the stored id, else create a demo one.
 async function resolvePortfolioId(): Promise<number> {
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored) {
-    try {
-      await getPortfolioStatus(Number(stored));
-      return Number(stored);
-    } catch {
-      // fall through and create a fresh portfolio
-    }
+    try { await getPortfolioStatus(Number(stored)); return Number(stored); } catch { /* stale */ }
   }
   const created = await createPortfolio("demo");
   window.localStorage.setItem(STORAGE_KEY, String(created.id));
@@ -36,22 +32,28 @@ async function resolvePortfolioId(): Promise<number> {
 }
 
 export default function DashboardPage() {
-  const [portfolioId, setPortfolioId] = useState<number | null>(null);
-  const [status, setStatus] = useState<PortfolioStatus | null>(null);
-  const [logs, setLogs] = useState<AgentRunOut[]>([]);
-  const [trades, setTrades] = useState<TradeOut[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ── Portfolio state ────────────────────────────────────────────────────────
+  const [portfolioId,  setPortfolioId]  = useState<number | null>(null);
+  const [status,       setStatus]       = useState<PortfolioStatus | null>(null);
+  const [logs,         setLogs]         = useState<AgentRunOut[]>([]);
+  const [trades,       setTrades]       = useState<TradeOut[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [apiConnected, setApiConnected] = useState(false);
+  const [mode,         setMode]         = useState<TradingMode>("paper");
 
+  // ── Global asset context ───────────────────────────────────────────────────
+  const [selectedAsset, setSelectedAsset] = useState("BTC");
+  const [assetType,     setAssetType]     = useState<AssetType>("crypto");
+
+  const assetData = getAsset(selectedAsset);
+
+  // ── Backend data loading ───────────────────────────────────────────────────
   const load = useCallback(async (id: number) => {
-    const [statusRes, logsRes, tradesRes] = await Promise.all([
-      getPortfolioStatus(id),
-      getAgentLogs(id),
-      getTrades(id),
+    const [s, l, t] = await Promise.all([
+      getPortfolioStatus(id), getAgentLogs(id), getTrades(id),
     ]);
-    setStatus(statusRes);
-    setLogs(logsRes);
-    setTrades(tradesRes);
+    setStatus(s); setLogs(l); setTrades(t);
+    setApiConnected(true);
   }, []);
 
   useEffect(() => {
@@ -62,70 +64,97 @@ export default function DashboardPage() {
         if (!active) return;
         setPortfolioId(id);
         await load(id);
-      } catch (err) {
+      } catch {
         if (active) {
-          setError(err instanceof Error ? err.message : "Failed to load.");
+          setStatus(MOCK_STATUS); setLogs(MOCK_LOGS); setTrades(MOCK_TRADES);
+          setApiConnected(false);
         }
       } finally {
         if (active) setLoading(false);
       }
     })();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [load]);
 
+  const handleModeChange = async (newMode: TradingMode) => {
+    setMode(newMode);
+    if (portfolioId) { try { await toggleMode(portfolioId, newMode); } catch { /* offline */ } }
+  };
+
+  const handleAssetChange = (symbol: string) => {
+    setSelectedAsset(symbol);
+    const a = getAsset(symbol);
+    if (a) setAssetType(a.type);
+  };
+
+  const display = status ?? MOCK_STATUS;
+
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-accent">AlphaAgent</h1>
-            <span className="rounded-full bg-positive/15 px-2.5 py-0.5 text-xs font-medium text-positive">
-              Paper trading
-            </span>
+    <div className="min-h-screen bg-bg text-white">
+
+      {/* ── Sticky top bar ── */}
+      <TopNav
+        mode={mode}
+        onModeChange={handleModeChange}
+        apiConnected={apiConnected}
+        portfolioUser={display.user}
+      />
+
+      {/* ── Sticky asset selector ── */}
+      <AssetSelectorBar
+        selectedAsset={selectedAsset}
+        assetType={assetType}
+        onAssetChange={handleAssetChange}
+        onTypeChange={setAssetType}
+      />
+
+      {/* ── Main content ── */}
+      <main className="mx-auto max-w-[1600px] space-y-3.5 px-4 py-4 lg:px-6">
+        {loading ? (
+          <div className="flex h-[70vh] items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-accent" />
+              <p className="text-sm text-muted">Loading portfolio…</p>
+            </div>
           </div>
-          <p className="text-sm text-muted">AI Trading Portfolio Manager</p>
-        </div>
-        {portfolioId !== null && (
-          <div className="flex items-center gap-3">
-            {status?.user && (
-              <span className="text-sm text-muted">
-                Portfolio: <span className="text-white">{status.user}</span>
-              </span>
-            )}
-            <ModeToggle portfolioId={portfolioId} />
-          </div>
+        ) : (
+          <>
+            {/* ── Row 1: NAV quick stats ── */}
+            <NAVWidget status={display} />
+
+            {/* ── Row 2: Price Chart + AI Analysis ── */}
+            <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-12">
+              <div className="xl:col-span-7">
+                <PriceChart asset={assetData} />
+              </div>
+              <div className="xl:col-span-5">
+                <AIAnalysisWidget asset={assetData} />
+              </div>
+            </div>
+
+            {/* ── Row 3: Portfolio positions + News Feed ── */}
+            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
+              <PortfolioWidget positions={display.positions} />
+              <NewsWidget selectedAsset={selectedAsset} />
+            </div>
+
+            {/* ── Row 4: AI Logs + Analysis Panel ── */}
+            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
+              <AILogsWidget logs={logs} />
+              {portfolioId !== null && (
+                <AnalysisPanel
+                  portfolioId={portfolioId}
+                  defaultSymbol={selectedAsset}
+                  onComplete={() => load(portfolioId)}
+                />
+              )}
+            </div>
+
+            {/* ── Row 5: Trade History ── */}
+            <TradeHistoryWidget trades={trades} />
+          </>
         )}
-      </header>
-
-      {loading && (
-        <p className="py-16 text-center text-muted">Loading portfolio…</p>
-      )}
-
-      {error && !loading && (
-        <div className="rounded-lg border border-negative/40 bg-negative/10 p-5 text-negative">
-          <p className="font-medium">Could not reach the backend.</p>
-          <p className="mt-1 text-sm">{error}</p>
-        </div>
-      )}
-
-      {!loading && !error && status && (
-        <div className="space-y-6">
-          <SummaryCards status={status} />
-          {portfolioId !== null && (
-            <AnalysisPanel
-              portfolioId={portfolioId}
-              onComplete={() => load(portfolioId)}
-            />
-          )}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <PositionsTable positions={status.positions} />
-            <ActionLog runs={logs} />
-          </div>
-          <TradeHistory trades={trades} />
-        </div>
-      )}
-    </main>
+      </main>
+    </div>
   );
 }

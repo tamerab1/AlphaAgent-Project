@@ -5,7 +5,10 @@
       "Bash(Select-Object FullName)",
       "Bash(Sort-Object FullName)",
       "Bash(find \"C:\\\\\\\\Users\\\\\\\\slima\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\AlphaAgent-Project\" -type f)",
-      "Bash(find \"C:\\\\\\\\Users\\\\\\\\slima\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\AlphaAgent-Project\" -type f -not -path \"*/.git/*\" -not -path \"*/.claude/*\")"
+      "Bash(find \"C:\\\\\\\\Users\\\\\\\\slima\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\AlphaAgent-Project\" -type f -not -path \"*/.git/*\" -not -path \"*/.claude/*\")",
+      "mcp__ide__getDiagnostics",
+      "Bash(npm install *)",
+      "Bash(npm run *)"
     ]
   }
 }
