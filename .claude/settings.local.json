@@ -5,7 +5,20 @@
       "Bash(Select-Object FullName)",
       "Bash(Sort-Object FullName)",
       "Bash(find \"C:\\\\\\\\Users\\\\\\\\slima\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\AlphaAgent-Project\" -type f)",
-      "Bash(find \"C:\\\\\\\\Users\\\\\\\\slima\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\AlphaAgent-Project\" -type f -not -path \"*/.git/*\" -not -path \"*/.claude/*\")"
+      "Bash(find \"C:\\\\\\\\Users\\\\\\\\slima\\\\\\\\Documents\\\\\\\\GitHub\\\\\\\\AlphaAgent-Project\" -type f -not -path \"*/.git/*\" -not -path \"*/.claude/*\")",
+      "mcp__ide__getDiagnostics",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(python -m black app/api/ai.py app/services/llm.py)",
+      "Bash(pip install *)",
+      "Bash(python -m black --check .)",
+      "Bash(python -c \"from app.models.profile import Profile; from app.schemas.profile import ProfileRead, ProfileUpdate; from app.api.users import router; print\\('All imports OK'\\)\")",
+      "Bash(python -m venv .venv)",
+      "Bash(.venv/Scripts/python.exe -c \"from app.models.profile import Profile; from app.schemas.profile import ProfileRead, ProfileUpdate; from app.api.users import router; print\\('All imports OK'\\)\")",
+      "Bash(.venv/Scripts/pip install *)",
+      "Bash(.venv/Scripts/python.exe -m black --check app/models/profile.py app/schemas/profile.py app/api/users.py app/api/deps.py app/core/config.py app/models/__init__.py app/api/__init__.py)",
+      "Bash(.venv/Scripts/python.exe -m black app/models/profile.py app/schemas/profile.py app/api/users.py app/api/deps.py app/core/config.py app/models/__init__.py app/api/__init__.py)",
+      "Bash(.venv/Scripts/python.exe -c ' *)"
     ]
   }
 }

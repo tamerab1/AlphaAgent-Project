@@ -50,6 +50,13 @@ class PortfolioSnapshot(BaseModel):
     symbol_exposure: float = 0.0
 
 
+class SentimentResult(BaseModel):
+    """Sentiment tag produced for a single news headline."""
+
+    sentiment: Literal["bullish", "bearish", "neutral"]
+    summary: str
+
+
 class AgentState(TypedDict, total=False):
     """Mutable state threaded through the LangGraph flow."""
 

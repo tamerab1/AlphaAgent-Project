@@ -67,6 +67,17 @@ class AgentRunOut(BaseModel):
     created_at: datetime
 
 
+# --- News --------------------------------------------------------------------
+class NewsItem(BaseModel):
+    id: str
+    headline: str
+    symbol: str
+    sentiment: Literal["bullish", "bearish", "neutral"]
+    summary: str
+    source: str
+    published_at: datetime
+
+
 # --- Trading -----------------------------------------------------------------
 class ToggleModeRequest(BaseModel):
     mode: Literal["paper", "live"]

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     )
     openai_api_key: str = ""
     tavily_api_key: str = ""
+    supabase_jwt_secret: str = ""
     market_data_live: bool = False
     log_level: str = "INFO"
     environment: str = "development"
