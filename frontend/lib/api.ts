@@ -2,7 +2,7 @@
 // Endpoints mirror backend/app/api (Phase 4): portfolio, ai, trading.
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://alphaagent-backend.onrender.com";
 
 // --- Domain types (mirror backend/app/schemas) ------------------------------
 
