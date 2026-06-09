@@ -1,12 +1,14 @@
 import json
 from datetime import datetime, timedelta, timezone
+from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.agents import build_graph
-from app.api.deps import get_portfolio_or_404, loads_json
+from app.api.deps import get_optional_user_id, get_portfolio_or_404, loads_json
 from app.db.session import get_db
 from app.models import AgentRun, Portfolio, Position, Trade
 from app.schemas.agent import ChartReading, PortfolioSnapshot
@@ -78,10 +80,16 @@ def ai_read_chart(body: ChartReadRequest):
 
 @router.post("/ai/{portfolio_id}/analyze-chart")
 async def analyze_chart(
-    portfolio_id: int, body: AnalyzeRequest, db: Session = Depends(get_db)
+    portfolio_id: int,
+    body: AnalyzeRequest,
+    db: Session = Depends(get_db),
+    caller_id: Optional[UUID] = Depends(get_optional_user_id),
 ):
     portfolio = get_portfolio_or_404(db, portfolio_id)
     snapshot = _portfolio_snapshot(portfolio, body.symbol)
+    # Resolve the owner: use the portfolio's stored user_id if the caller didn't
+    # send a JWT (e.g. legacy anonymous sessions); prefer the JWT when present.
+    owner_id: Optional[UUID] = caller_id or portfolio.user_id
     # Persistence runs inside the streaming generator (after the endpoint has
     # returned), where the request-scoped session is no longer reliable. Capture
     # the engine now and open a fresh session bound to it when we persist.
@@ -113,6 +121,7 @@ async def analyze_chart(
                     body.symbol,
                     final,
                     snapshot.total_value,
+                    owner_id,
                 )
         done = {"node": "done", "executed": bool(final.get("executed"))}
         yield f"data: {json.dumps(done)}\n\n"
@@ -154,6 +163,7 @@ def _persist(
     symbol: str,
     final: dict,
     total_value: float,
+    user_id: Optional[UUID] = None,
 ) -> None:
     analyst = final.get("analyst")
     risk = final.get("risk")
@@ -169,11 +179,13 @@ def _persist(
         )
     )
     if executed and analyst and risk and market:
-        _apply_trade(db, portfolio, symbol, analyst, risk, market, total_value)
+        _apply_trade(db, portfolio, symbol, analyst, risk, market, total_value, user_id)
     db.commit()
 
 
-def _apply_trade(db, portfolio, symbol, analyst, risk, market, total_value) -> None:
+def _apply_trade(
+    db, portfolio, symbol, analyst, risk, market, total_value, user_id=None
+) -> None:
     price = market.price
     existing = next((p for p in portfolio.positions if p.symbol == symbol), None)
     side = analyst.action
@@ -207,6 +219,7 @@ def _apply_trade(db, portfolio, symbol, analyst, risk, market, total_value) -> N
     db.add(
         Trade(
             portfolio_id=portfolio.id,
+            user_id=user_id,
             symbol=symbol,
             side=side,
             qty=qty,

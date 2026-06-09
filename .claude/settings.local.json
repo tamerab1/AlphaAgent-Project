@@ -18,7 +18,12 @@
       "Bash(.venv/Scripts/pip install *)",
       "Bash(.venv/Scripts/python.exe -m black --check app/models/profile.py app/schemas/profile.py app/api/users.py app/api/deps.py app/core/config.py app/models/__init__.py app/api/__init__.py)",
       "Bash(.venv/Scripts/python.exe -m black app/models/profile.py app/schemas/profile.py app/api/users.py app/api/deps.py app/core/config.py app/models/__init__.py app/api/__init__.py)",
-      "Bash(.venv/Scripts/python.exe -c ' *)"
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(.venv/Scripts/python.exe -m black app/models/trade.py app/models/portfolio.py app/api/deps.py app/api/portfolio.py app/api/users.py app/api/ai.py)",
+      "Bash(npx tsc *)",
+      "Bash(node -e \"require\\('@supabase/supabase-js'\\); require\\('@supabase/auth-ui-react'\\); require\\('@supabase/auth-ui-shared'\\); console.log\\('all packages resolve OK'\\)\")",
+      "Bash(node -e \"const p=require\\('@supabase/auth-ui-react/package.json'\\); console.log\\('auth-ui-react:', p.version\\)\")",
+      "Bash(node -e \"const p=require\\('@supabase/supabase-js/package.json'\\); console.log\\('supabase-js:', p.version\\)\")"
     ]
   }
 }

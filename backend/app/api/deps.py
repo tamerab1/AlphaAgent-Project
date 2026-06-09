@@ -44,6 +44,27 @@ def get_current_user_id(
         )
 
 
+def get_optional_user_id(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+) -> Optional[UUID]:
+    """Like get_current_user_id but returns None instead of raising when there
+    is no token or auth is not configured — used on routes that support both
+    anonymous and authenticated access."""
+    if credentials is None or not settings.supabase_jwt_secret:
+        return None
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.supabase_jwt_secret,
+            algorithms=["HS256"],
+            options={"verify_aud": False},
+        )
+        sub: Optional[str] = payload.get("sub")
+        return UUID(sub) if sub else None
+    except (JWTError, ValueError):
+        return None
+
+
 def get_portfolio_or_404(db: Session, portfolio_id: int) -> Portfolio:
     portfolio = db.get(Portfolio, portfolio_id)
     if portfolio is None:

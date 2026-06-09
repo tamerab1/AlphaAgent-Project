@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_portfolio_or_404
+from app.api.deps import get_optional_user_id, get_portfolio_or_404
 from app.db.session import get_db
 from app.models import Portfolio, Trade
 from app.schemas.api import (
@@ -16,9 +19,27 @@ from app.services import market_data
 router = APIRouter(prefix="/api", tags=["portfolio"])
 
 
+def _assert_portfolio_access(portfolio: Portfolio, caller_id: Optional[UUID]) -> None:
+    """Raise 403 if the portfolio is user-scoped and the caller doesn't own it."""
+    if portfolio.user_id is not None and caller_id is not None:
+        if portfolio.user_id != caller_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied",
+            )
+
+
 @router.post("/portfolios", response_model=PortfolioOut, status_code=201)
-def create_portfolio(body: PortfolioCreate, db: Session = Depends(get_db)):
-    portfolio = Portfolio(user=body.user, cash_balance=body.cash_balance)
+def create_portfolio(
+    body: PortfolioCreate,
+    db: Session = Depends(get_db),
+    caller_id: Optional[UUID] = Depends(get_optional_user_id),
+):
+    portfolio = Portfolio(
+        user=body.user,
+        user_id=caller_id,
+        cash_balance=body.cash_balance,
+    )
     db.add(portfolio)
     db.commit()
     db.refresh(portfolio)
@@ -28,8 +49,13 @@ def create_portfolio(body: PortfolioCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/portfolio/{portfolio_id}/status", response_model=PortfolioStatus)
-def portfolio_status(portfolio_id: int, db: Session = Depends(get_db)):
+def portfolio_status(
+    portfolio_id: int,
+    db: Session = Depends(get_db),
+    caller_id: Optional[UUID] = Depends(get_optional_user_id),
+):
     portfolio = get_portfolio_or_404(db, portfolio_id)
+    _assert_portfolio_access(portfolio, caller_id)
     positions_out: list[PositionOut] = []
     positions_value = 0.0
     unrealized = 0.0
@@ -61,8 +87,13 @@ def portfolio_status(portfolio_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/portfolio/{portfolio_id}/trades", response_model=list[TradeOut])
-def portfolio_trades(portfolio_id: int, db: Session = Depends(get_db)):
-    get_portfolio_or_404(db, portfolio_id)
+def portfolio_trades(
+    portfolio_id: int,
+    db: Session = Depends(get_db),
+    caller_id: Optional[UUID] = Depends(get_optional_user_id),
+):
+    portfolio = get_portfolio_or_404(db, portfolio_id)
+    _assert_portfolio_access(portfolio, caller_id)
     trades = (
         db.query(Trade)
         .filter(Trade.portfolio_id == portfolio_id)
