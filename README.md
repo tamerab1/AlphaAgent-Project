@@ -25,6 +25,64 @@ AlphaAgent is an AI-powered backend system for automated trading analysis and po
 
 ---
 
+## How It Works — AI Trading Engine
+
+The core of AlphaAgent is a **multi-agent decision pipeline** built with LangGraph and
+`gpt-4o-mini`. It runs **paper trades only** (no real orders) — a deliberate design
+choice: auto-executing real money off model output isn't responsible without guardrails
+beyond this demo's scope.
+
+A single analysis call streams a whole desk of agents debating one symbol, live over SSE:
+
+```
+POST /api/ai/{portfolio_id}/analyze-chart   ──▶  Server-Sent Events stream
+        │
+        ▼
+  ┌──────────┐      ┌──────────────┐
+  │  ingest  │─────▶│  🐂 bull     │──┐
+  │ price,   │      │   analyst    │  │    ┌───────────┐    ┌───────────────┐
+  │ RSI,MACD,│      └──────────────┘  ├──▶ │ ⚖️  judge │──▶ │ 🛡️  risk mgr  │──▶ execute
+  │ MA50/200,│      ┌──────────────┐  │    │  verdict  │    │  (≤ 5% cap)   │      or
+  │ S/R      │─────▶│  🐻 bear     │──┘    └───────────┘    └───────────────┘    reject
+  └──────────┘      │   analyst    │
+                    └──────────────┘
+```
+
+| Stage | What it does |
+|-------|--------------|
+| **ingest** | Pulls live price, RSI, MACD, 50/200-day moving averages and support/resistance for the symbol. |
+| **bull / bear** | Two opposing analyst personas argue the strongest evidence-based case (BUY vs SELL), each returning a structured thesis, key points and conviction. They run **in parallel**. |
+| **judge** | Weighs both cases against the technicals into a final `BUY / SELL / HOLD` with confidence, target price and stop-loss. |
+| **risk manager** | A deterministic **5% position cap** (hard, non-overridable) plus an LLM judgment that can size down or veto within it. |
+| **execute** | On approval, writes the paper trade and updates positions + cash; otherwise logs the rejection. |
+
+**Structured & streamed.** Every agent returns a validated Pydantic object, and each
+node's output is streamed to the dashboard so you watch the agents reason in real time
+(`astream_events` → SSE). An optional chart screenshot is read by the multimodal model
+and folded into the judge's decision.
+
+### Core application API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/ai/{id}/analyze-chart` | Run the agent pipeline; SSE-streams each agent, then persists the run + any trade |
+| `GET`  | `/api/ai/{id}/logs` | The AI action log — every decision and its rationale |
+| `GET`  | `/api/portfolio/{id}/status` | Portfolio value, cash, open positions and live P&L |
+| `GET`  | `/api/portfolio/{id}/trades` | Trade history (paper ledger) |
+| `GET`  | `/api/market/{symbol}` | Live price, technical indicators and the AI read for one asset |
+| `GET`  | `/api/ai/news` | AI-tagged market headlines with sentiment |
+
+### Data model
+
+| Table | Purpose |
+|-------|---------|
+| `portfolios` | Cash balance + ownership |
+| `positions` | Open holdings (symbol, qty, average price) |
+| `trades` | Executed paper trades with rationale |
+| `agent_runs` | Each analysis run (analyst + risk JSON) — powers the AI action log |
+
+---
+
 ## Quick Start
 
 ### Prerequisites
