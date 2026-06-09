@@ -32,7 +32,6 @@ from app.db.session import Base, get_db
 from app.main import app
 from app.models.portfolio import Portfolio
 
-
 # ── Constants ──────────────────────────────────────────────────────────────────
 
 TEST_USER_UUID: str = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
@@ -164,9 +163,7 @@ class TestProtectedEndpointSuccess:
         body = response.json()
         assert body["id"] == TEST_USER_UUID
 
-    def test_real_jwt_accepted_on_protected_route(
-        self, jwt_client: TestClient
-    ) -> None:
+    def test_real_jwt_accepted_on_protected_route(self, jwt_client: TestClient) -> None:
         """A well-formed JWT signed with the configured secret passes verification.
 
         Tests the full auth stack end-to-end: HTTPBearer extraction → jose decode
@@ -227,9 +224,7 @@ class TestProtectedEndpointMissingToken:
 
 
 class TestProtectedEndpointInvalidToken:
-    def test_returns_401_with_random_string_token(
-        self, jwt_client: TestClient
-    ) -> None:
+    def test_returns_401_with_random_string_token(self, jwt_client: TestClient) -> None:
         """A token that is not a JWT structure at all is rejected with 401.
 
         python-jose raises JWTError on malformed input; get_current_user_id
@@ -245,9 +240,7 @@ class TestProtectedEndpointInvalidToken:
         assert response.status_code == 401
         assert "invalid token" in response.json()["detail"].lower()
 
-    def test_returns_401_with_expired_token(
-        self, jwt_client: TestClient
-    ) -> None:
+    def test_returns_401_with_expired_token(self, jwt_client: TestClient) -> None:
         """A structurally valid JWT with an ``exp`` in the past is rejected.
 
         python-jose raises ExpiredSignatureError (a subclass of JWTError);
@@ -263,9 +256,7 @@ class TestProtectedEndpointInvalidToken:
         # Assert
         assert response.status_code == 401
 
-    def test_returns_401_with_wrong_secret(
-        self, jwt_client: TestClient
-    ) -> None:
+    def test_returns_401_with_wrong_secret(self, jwt_client: TestClient) -> None:
         """A JWT signed with a different secret is rejected as an invalid token.
 
         Simulates a forged or stolen token signed by an attacker's key;
@@ -281,9 +272,7 @@ class TestProtectedEndpointInvalidToken:
         # Assert
         assert response.status_code == 401
 
-    def test_returns_401_with_tampered_payload(
-        self, jwt_client: TestClient
-    ) -> None:
+    def test_returns_401_with_tampered_payload(self, jwt_client: TestClient) -> None:
         """A token whose payload was modified after signing is rejected.
 
         Constructs a JWT, then replaces the payload segment with a different
