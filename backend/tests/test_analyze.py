@@ -68,7 +68,9 @@ def test_analyze_buy_persists_trade_and_logs(api_client, monkeypatch):
 def test_analyze_hold_records_run_without_trade(api_client, monkeypatch):
     client, _ = api_client
     monkeypatch.setattr(
-        llm, "judge", lambda m, p, bull, bear, chart_image=None: _decision("HOLD", pct=0.0)
+        llm,
+        "judge",
+        lambda m, p, bull, bear, chart_image=None: _decision("HOLD", pct=0.0),
     )
     pid = _create(client)
 
@@ -87,7 +89,9 @@ def test_analyze_hold_records_run_without_trade(api_client, monkeypatch):
 def test_analyze_sell_reduces_position(api_client, monkeypatch):
     client, Session = api_client
     monkeypatch.setattr(
-        llm, "judge", lambda m, p, bull, bear, chart_image=None: _decision("SELL", pct=0.5)
+        llm,
+        "judge",
+        lambda m, p, bull, bear, chart_image=None: _decision("SELL", pct=0.5),
     )
     pid = _create(client)
 
@@ -112,7 +116,9 @@ def test_analyze_sell_reduces_position(api_client, monkeypatch):
 def test_analyze_buy_adds_to_existing_position(api_client, monkeypatch):
     client, Session = api_client
     monkeypatch.setattr(
-        llm, "judge", lambda m, p, bull, bear, chart_image=None: _decision("BUY", pct=0.02)
+        llm,
+        "judge",
+        lambda m, p, bull, bear, chart_image=None: _decision("BUY", pct=0.02),
     )
     pid = _create(client)
 

@@ -204,7 +204,9 @@ def judge(
 ) -> AnalystDecision:
     """Final BUY/SELL/HOLD weighing the bull vs bear cases (mock when offline)."""
     if _has_api_key():
-        return _llm_judge(market, portfolio, bull, bear, chart_image)  # pragma: no cover
+        return _llm_judge(
+            market, portfolio, bull, bear, chart_image
+        )  # pragma: no cover
     return _mock_judge(market, bull, bear, chart_image)
 
 
@@ -284,9 +286,7 @@ def _format_technicals(market: MarketData) -> str:
         lines.append(f"MACD signal: {market.macd_signal}")
     if market.ma50 is not None and market.ma200 is not None:
         trend = "above" if market.price >= market.ma50 else "below"
-        lines.append(
-            f"MA50: {market.ma50}  MA200: {market.ma200} (price {trend} MA50)"
-        )
+        lines.append(f"MA50: {market.ma50}  MA200: {market.ma200} (price {trend} MA50)")
     if market.support is not None and market.resistance is not None:
         lines.append(f"Support: {market.support}  Resistance: {market.resistance}")
     if market.change_24h is not None:
@@ -301,9 +301,9 @@ def _llm_analyze(
 ) -> AnalystDecision:  # pragma: no cover
     from langchain_openai import ChatOpenAI
 
-    structured = ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key).with_structured_output(
-        AnalystDecision
-    )
+    structured = ChatOpenAI(
+        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key
+    ).with_structured_output(AnalystDecision)
     system = ANALYST_SYSTEM + (ANALYST_VISION_HINT if chart_image else "")
     technicals = _format_technicals(market)
     text = (
@@ -327,7 +327,9 @@ def _llm_risk_note(
 ) -> str:  # pragma: no cover
     from langchain_openai import ChatOpenAI
 
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key)
+    llm = ChatOpenAI(
+        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key
+    )
     prompt = (
         f"{RISK_SYSTEM}\n\nProposed: {decision.action} {market.symbol} "
         f"({decision.suggested_pct:.0%}). RSI {market.rsi:.0f}."
@@ -509,9 +511,9 @@ def _mock_sentiment(headline: str, symbol: str) -> SentimentResult:
 def _llm_sentiment(headline: str, symbol: str) -> SentimentResult:  # pragma: no cover
     from langchain_openai import ChatOpenAI
 
-    structured = ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key).with_structured_output(
-        SentimentResult
-    )
+    structured = ChatOpenAI(
+        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key
+    ).with_structured_output(SentimentResult)
     prompt = f"{NEWS_SENTIMENT_SYSTEM}\n\nSymbol: {symbol}\nHeadline: {headline}"
     return structured.invoke(prompt)
 
@@ -535,9 +537,9 @@ def _llm_read_chart(
 ) -> ChartReading:  # pragma: no cover
     from langchain_openai import ChatOpenAI
 
-    structured = ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key).with_structured_output(
-        ChartReading
-    )
+    structured = ChatOpenAI(
+        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key
+    ).with_structured_output(ChartReading)
     text = CHART_READER_SYSTEM + (f"\nSymbol: {symbol}" if symbol else "")
     content = [
         {"type": "text", "text": text},

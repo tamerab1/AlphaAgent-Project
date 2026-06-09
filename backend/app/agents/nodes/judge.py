@@ -18,8 +18,6 @@ def judge_node(state: AgentState) -> AgentState:
     log = state.get("log", [])
     msg = f"judge: {decision.action} ({decision.confidence:.0%})"
     if decision.target_price is not None and decision.stop_loss is not None:
-        msg += (
-            f" | target {decision.target_price:.2f} / stop {decision.stop_loss:.2f}"
-        )
+        msg += f" | target {decision.target_price:.2f} / stop {decision.stop_loss:.2f}"
     log.append(msg)
     return {"analyst": decision, "log": log}

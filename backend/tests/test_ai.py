@@ -102,7 +102,9 @@ def test_graph_executes_buy(monkeypatch):
 
 def test_graph_rejects_hold(monkeypatch):
     monkeypatch.setattr(
-        llm, "judge", lambda m, p, bull, bear, chart_image=None: _decision("HOLD", pct=0.0)
+        llm,
+        "judge",
+        lambda m, p, bull, bear, chart_image=None: _decision("HOLD", pct=0.0),
     )
     result = graph.build_graph().invoke(
         {"symbol": "AAPL", "market": _market(), "portfolio": _portfolio()}
@@ -112,7 +114,9 @@ def test_graph_rejects_hold(monkeypatch):
 
 def test_graph_ingest_mocks_market(monkeypatch):
     monkeypatch.setattr(
-        llm, "judge", lambda m, p, bull, bear, chart_image=None: _decision("HOLD", pct=0.0)
+        llm,
+        "judge",
+        lambda m, p, bull, bear, chart_image=None: _decision("HOLD", pct=0.0),
     )
     result = graph.build_graph().invoke({"symbol": "AAPL"})
     assert result["market"].symbol == "AAPL"
