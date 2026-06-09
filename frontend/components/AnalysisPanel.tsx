@@ -116,6 +116,14 @@ export default function AnalysisPanel({
                     {ev.market.rsi.toFixed(1)}
                   </p>
                 )}
+                {ev.node === "analyst_agent" &&
+                  ev.analyst?.target_price != null &&
+                  ev.analyst?.stop_loss != null && (
+                    <p className="text-sm text-muted">
+                      Target ${ev.analyst.target_price.toFixed(2)} · Stop $
+                      {ev.analyst.stop_loss.toFixed(2)}
+                    </p>
+                  )}
               </div>
             </li>
           ))}

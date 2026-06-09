@@ -1,4 +1,4 @@
-from typing import Literal, TypedDict
+from typing import Literal, Optional, TypedDict
 
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,8 @@ class AnalystDecision(BaseModel):
     reasoning: str
     confidence: float = Field(ge=0.0, le=1.0)
     suggested_pct: float = Field(ge=0.0, le=1.0)
+    target_price: Optional[float] = Field(default=None, ge=0.0)
+    stop_loss: Optional[float] = Field(default=None, ge=0.0)
 
 
 class RiskDecision(BaseModel):

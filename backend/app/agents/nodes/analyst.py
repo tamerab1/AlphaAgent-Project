@@ -5,5 +5,10 @@ from app.services import llm
 def analyst_node(state: AgentState) -> AgentState:
     decision = llm.analyze(state["market"], state["portfolio"])
     log = state.get("log", [])
-    log.append(f"analyst: {decision.action} ({decision.confidence:.0%})")
+    msg = f"analyst: {decision.action} ({decision.confidence:.0%})"
+    if decision.target_price is not None and decision.stop_loss is not None:
+        msg += (
+            f" | target {decision.target_price:.2f} / " f"stop {decision.stop_loss:.2f}"
+        )
+    log.append(msg)
     return {"analyst": decision, "log": log}

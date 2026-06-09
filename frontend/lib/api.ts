@@ -37,6 +37,8 @@ export interface AnalystDecision {
   reasoning: string;
   confidence: number;
   suggested_pct: number;
+  target_price: number | null;
+  stop_loss: number | null;
 }
 
 export interface RiskDecision {

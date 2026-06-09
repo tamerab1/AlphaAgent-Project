@@ -5,7 +5,8 @@ from app.schemas.agent import AnalystDecision, MarketData, PortfolioSnapshot
 ANALYST_SYSTEM = (
     "You are a disciplined trading analyst. Given market data and the current "
     "portfolio, decide whether to BUY, SELL, or HOLD the symbol. Be conservative "
-    "and explain your reasoning briefly."
+    "and explain your reasoning briefly. When recommending a BUY or SELL, include "
+    "a realistic target_price and stop_loss; leave both null for HOLD."
 )
 
 RISK_SYSTEM = (
@@ -39,13 +40,25 @@ def _mock_analyze(market: MarketData) -> AnalystDecision:
         action, confidence, pct = "SELL", 0.7, 0.05
     else:
         action, confidence, pct = "HOLD", 0.5, 0.0
+    target_price, stop_loss = _mock_targets(action, market.price)
     return AnalystDecision(
         action=action,
         symbol=market.symbol,
         reasoning=f"RSI {market.rsi:.0f} at price {market.price:.2f} -> {action}.",
         confidence=confidence,
         suggested_pct=pct,
+        target_price=target_price,
+        stop_loss=stop_loss,
     )
+
+
+def _mock_targets(action: str, price: float) -> tuple[float | None, float | None]:
+    """Deterministic target / stop-loss for the offline analyst (None on HOLD)."""
+    if action == "BUY":
+        return round(price * 1.10, 2), round(price * 0.95, 2)
+    if action == "SELL":
+        return round(price * 0.90, 2), round(price * 1.05, 2)
+    return None, None
 
 
 def _mock_risk_note(market: MarketData, decision: AnalystDecision) -> str:

@@ -1,5 +1,5 @@
 import type { AgentRunOut } from "@/lib/api";
-import { formatTime } from "@/lib/format";
+import { formatCurrency, formatTime } from "@/lib/format";
 
 function StatusBadge({ run }: { run: AgentRunOut }) {
   let label = "HOLD";
@@ -52,6 +52,15 @@ export default function ActionLog({ runs }: { runs: AgentRunOut[] }) {
                   {run.analyst.reasoning}
                 </p>
               )}
+              {run.analyst?.target_price != null &&
+                run.analyst?.stop_loss != null && (
+                  <p className="mt-1 text-sm text-muted">
+                    <span className="text-white">Target:</span>{" "}
+                    {formatCurrency(run.analyst.target_price)}
+                    <span className="ml-3 text-white">Stop:</span>{" "}
+                    {formatCurrency(run.analyst.stop_loss)}
+                  </p>
+                )}
               {run.risk?.reason && (
                 <p className="mt-1 text-sm text-muted">
                   <span className="text-white">Risk:</span> {run.risk.reason}

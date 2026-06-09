@@ -43,6 +43,24 @@ def test_mock_analyze_hold_midrange():
     assert llm.analyze(_market(rsi=50.0), _portfolio()).action == "HOLD"
 
 
+def test_mock_analyze_buy_sets_target_and_stop():
+    d = llm.analyze(_market(rsi=20.0, price=100.0), _portfolio())
+    assert d.target_price == 110.0
+    assert d.stop_loss == 95.0
+
+
+def test_mock_analyze_sell_sets_target_and_stop():
+    d = llm.analyze(_market(rsi=80.0, price=100.0), _portfolio())
+    assert d.target_price == 90.0
+    assert d.stop_loss == 105.0
+
+
+def test_mock_analyze_hold_has_no_target():
+    d = llm.analyze(_market(rsi=50.0), _portfolio())
+    assert d.target_price is None
+    assert d.stop_loss is None
+
+
 def test_risk_note_mock():
     note = llm.risk_note(_market(), _decision("BUY"))
     assert "risk note" in note.lower()
