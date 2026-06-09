@@ -23,6 +23,16 @@ class RiskDecision(BaseModel):
     adjusted_pct: float = Field(ge=0.0, le=1.0)
 
 
+class ChartReading(BaseModel):
+    """Visual read of an uploaded chart screenshot (multimodal analyst)."""
+
+    summary: str
+    support_levels: list[float] = Field(default_factory=list)
+    resistance_levels: list[float] = Field(default_factory=list)
+    patterns: list[str] = Field(default_factory=list)
+    bias: Literal["bullish", "bearish", "neutral"] = "neutral"
+
+
 class MarketData(BaseModel):
     """Ingested market context for a symbol (mocked in Phase 2)."""
 

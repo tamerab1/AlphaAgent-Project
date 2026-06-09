@@ -1,7 +1,12 @@
 import os
 from typing import Optional
 
-from app.schemas.agent import AnalystDecision, MarketData, PortfolioSnapshot
+from app.schemas.agent import (
+    AnalystDecision,
+    ChartReading,
+    MarketData,
+    PortfolioSnapshot,
+)
 
 ANALYST_SYSTEM = (
     "You are a disciplined trading analyst. Given market data and the current "
@@ -13,6 +18,13 @@ ANALYST_SYSTEM = (
 ANALYST_VISION_HINT = (
     " A chart screenshot is attached; read its support/resistance levels and "
     "candlestick patterns and factor them into your decision."
+)
+
+CHART_READER_SYSTEM = (
+    "You are a technical chart analyst. Read the attached trading chart screenshot "
+    "and identify the key support and resistance price levels, any notable "
+    "candlestick or chart patterns, and an overall directional bias "
+    "(bullish, bearish, or neutral). Be concise and specific."
 )
 
 RISK_SYSTEM = (
@@ -46,6 +58,13 @@ def risk_note(market: MarketData, decision: AnalystDecision) -> str:
     if _has_api_key():
         return _llm_risk_note(market, decision)  # pragma: no cover
     return _mock_risk_note(market, decision)
+
+
+def read_chart(chart_image: str, symbol: Optional[str] = None) -> ChartReading:
+    """Visual read of a chart screenshot via gpt-4o-mini vision (mock offline)."""
+    if _has_api_key():
+        return _llm_read_chart(chart_image, symbol)  # pragma: no cover
+    return _mock_read_chart(symbol)
 
 
 def _mock_analyze(
@@ -125,3 +144,33 @@ def _llm_risk_note(
         f"({decision.suggested_pct:.0%}). RSI {market.rsi:.0f}."
     )
     return llm.invoke(prompt).content
+
+
+def _mock_read_chart(symbol: Optional[str]) -> ChartReading:
+    label = symbol or "the chart"
+    return ChartReading(
+        summary=(
+            f"Offline mode: connect an OPENAI_API_KEY to read {label} visually. "
+            "Showing a placeholder; no image was analyzed."
+        ),
+        support_levels=[],
+        resistance_levels=[],
+        patterns=[],
+        bias="neutral",
+    )
+
+
+def _llm_read_chart(
+    chart_image: str, symbol: Optional[str]
+) -> ChartReading:  # pragma: no cover
+    from langchain_openai import ChatOpenAI
+
+    structured = ChatOpenAI(model="gpt-4o-mini", temperature=0).with_structured_output(
+        ChartReading
+    )
+    text = CHART_READER_SYSTEM + (f"\nSymbol: {symbol}" if symbol else "")
+    content = [
+        {"type": "text", "text": text},
+        {"type": "image_url", "image_url": {"url": chart_image}},
+    ]
+    return structured.invoke([{"role": "user", "content": content}])

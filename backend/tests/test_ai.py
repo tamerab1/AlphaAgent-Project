@@ -71,6 +71,15 @@ def test_mock_analyze_with_chart_image_notes_it():
     assert "chart image" in d.reasoning.lower()
 
 
+def test_mock_read_chart_offline_placeholder():
+    from app.schemas.agent import ChartReading
+
+    reading = llm.read_chart("data:image/png;base64,AAAA", "AAPL")
+    assert isinstance(reading, ChartReading)
+    assert reading.bias == "neutral"
+    assert "AAPL" in reading.summary
+
+
 def test_risk_note_mock():
     note = llm.risk_note(_market(), _decision("BUY"))
     assert "risk note" in note.lower()
