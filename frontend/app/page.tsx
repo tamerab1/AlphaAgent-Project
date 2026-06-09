@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  createPortfolio, getAgentLogs, getPortfolioStatus, getTrades, toggleMode,
-  getAssetDetail,
+  getMyPortfolio, getAgentLogs, getPortfolioStatus, getTrades, toggleMode,
+  getAssetDetail, setAuthToken,
   type AgentRunOut, type PortfolioStatus, type TradeOut, type TradingMode,
   type AssetDetail,
 } from "@/lib/api";
 import { MOCK_STATUS, MOCK_LOGS, MOCK_TRADES } from "@/lib/mockData";
 import { getAsset, type AssetType, type AssetInfo } from "@/lib/mockAssets";
+import { useSession } from "@/components/AuthGate";
+import { supabase } from "@/lib/supabase";
 
 // Map the backend's snake_case AssetDetail onto the widgets' AssetInfo shape.
 function toAssetInfo(d: AssetDetail): AssetInfo {
@@ -36,19 +38,24 @@ import TradeHistoryWidget from "@/components/TradeHistoryWidget";
 import AnalysisPanel      from "@/components/AnalysisPanel";
 import NewsWidget         from "@/components/NewsWidget";
 
-const STORAGE_KEY = "alphaagent_portfolio_id";
-
-async function resolvePortfolioId(): Promise<number> {
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    try { await getPortfolioStatus(Number(stored)); return Number(stored); } catch { /* stale */ }
-  }
-  const created = await createPortfolio("demo");
-  window.localStorage.setItem(STORAGE_KEY, String(created.id));
-  return created.id;
-}
 
 export default function DashboardPage() {
+  // ── Auth session — injected by AuthGate context ────────────────────────────
+  const session = useSession();
+
+  // Sync the module-level auth token. This effect is declared first so it runs
+  // before the portfolio loading effect, guaranteeing the token is set before
+  // any API call fires.
+  useEffect(() => {
+    setAuthToken(session?.access_token ?? null);
+  }, [session?.access_token]);
+
+  // Ensure the viewport starts at the top on every mount. Belt-and-suspenders
+  // guard in case any widget scroll propagates to the page level.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // ── Portfolio state ────────────────────────────────────────────────────────
   const [portfolioId,  setPortfolioId]  = useState<number | null>(null);
   const [status,       setStatus]       = useState<PortfolioStatus | null>(null);
@@ -88,14 +95,18 @@ export default function DashboardPage() {
     setApiConnected(true);
   }, []);
 
+  // Portfolio loading is keyed on the user's ID so each authenticated user
+  // gets their own isolated portfolio. getMyPortfolio() auto-creates a $100k
+  // paper portfolio on first login for any new user.
   useEffect(() => {
+    if (!session?.user?.id) return;
     let active = true;
     (async () => {
       try {
-        const id = await resolvePortfolioId();
+        const portfolio = await getMyPortfolio();
         if (!active) return;
-        setPortfolioId(id);
-        await load(id);
+        setPortfolioId(portfolio.id);
+        await load(portfolio.id);
       } catch {
         if (active) {
           setStatus(MOCK_STATUS); setLogs(MOCK_LOGS); setTrades(MOCK_TRADES);
@@ -106,7 +117,7 @@ export default function DashboardPage() {
       }
     })();
     return () => { active = false; };
-  }, [load]);
+  }, [session?.user?.id, load]);
 
   const handleModeChange = async (newMode: TradingMode) => {
     setMode(newMode);
@@ -129,7 +140,8 @@ export default function DashboardPage() {
         mode={mode}
         onModeChange={handleModeChange}
         apiConnected={apiConnected}
-        portfolioUser={display.user}
+        portfolioUser={session?.user?.email ?? display.user}
+        onSignOut={() => supabase.auth.signOut()}
       />
 
       {/* ── Sticky asset selector ── */}

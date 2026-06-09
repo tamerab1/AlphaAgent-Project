@@ -26,10 +26,15 @@ function StatusIcon({ run }: { run: AgentRunOut }) {
 }
 
 export default function AILogsWidget({ logs }: AILogsWidgetProps) {
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
+  // Scroll the terminal container (not the page) to the bottom when new logs
+  // arrive. scrollIntoView() was used here before but it propagates up to the
+  // page scroll, causing the "jump to bottom on refresh" bug.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
   }, [logs.length]);
 
   return (
@@ -52,7 +57,7 @@ export default function AILogsWidget({ logs }: AILogsWidgetProps) {
       </div>
 
       {/* Terminal body */}
-      <div className="scrollbar-thin h-[344px] space-y-2.5 overflow-y-auto p-3 font-mono text-xs">
+      <div ref={containerRef} className="scrollbar-thin h-[344px] space-y-2.5 overflow-y-auto p-3 font-mono text-xs">
         {logs.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-muted">
             <Terminal className="h-8 w-8 opacity-30" />
@@ -113,7 +118,6 @@ export default function AILogsWidget({ logs }: AILogsWidgetProps) {
             </div>
           ))
         )}
-        <div ref={bottomRef} />
       </div>
     </div>
   );

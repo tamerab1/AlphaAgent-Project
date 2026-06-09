@@ -9,9 +9,10 @@ interface TopNavProps {
   onModeChange: (mode: TradingMode) => void;
   apiConnected: boolean;
   portfolioUser?: string;
+  onSignOut?: () => void;
 }
 
-export default function TopNav({ mode, onModeChange, apiConnected, portfolioUser }: TopNavProps) {
+export default function TopNav({ mode, onModeChange, apiConnected, portfolioUser, onSignOut }: TopNavProps) {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const isLive = mode === "live";
@@ -109,7 +110,9 @@ export default function TopNav({ mode, onModeChange, apiConnected, portfolioUser
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/20 text-[10px] font-bold uppercase text-accent">
               {(portfolioUser ?? "D").charAt(0).toUpperCase()}
             </span>
-            <span className="hidden text-xs text-muted sm:block capitalize">{portfolioUser ?? "Demo"}</span>
+            <span className="hidden max-w-[120px] truncate text-xs text-muted sm:block">
+              {portfolioUser ?? "Demo"}
+            </span>
             <ChevronDown className={`h-3 w-3 text-muted transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`} />
           </button>
 
@@ -122,7 +125,10 @@ export default function TopNav({ mode, onModeChange, apiConnected, portfolioUser
                 <Settings className="h-3.5 w-3.5" /> Settings
               </button>
               <div className="my-1 border-t border-border" />
-              <button className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-negative transition-colors hover:bg-negative/5">
+              <button
+                onClick={() => { setProfileOpen(false); onSignOut?.(); }}
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs text-negative transition-colors hover:bg-negative/5"
+              >
                 <LogOut className="h-3.5 w-3.5" /> Sign out
               </button>
             </div>

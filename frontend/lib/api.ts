@@ -116,13 +116,36 @@ export interface ToggleModeResponse {
   message: string;
 }
 
+// --- Auth token management ---------------------------------------------------
+// The active Supabase JWT is stored here and injected into every request.
+// Call setAuthToken(session.access_token) when a session is established and
+// setAuthToken(null) on sign-out.
+
+let _authToken: string | null = null;
+
+export function setAuthToken(token: string | null): void {
+  _authToken = token;
+}
+
+export function getAuthToken(): string | null {
+  return _authToken;
+}
+
 // --- Fetch helper ------------------------------------------------------------
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const baseHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (_authToken) {
+    baseHeaders["Authorization"] = `Bearer ${_authToken}`;
+  }
   const res = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
     cache: "no-store",
     ...init,
+    // Spread caller headers last so they can override Content-Type if needed,
+    // but our Authorization header is always present when a token exists.
+    headers: { ...baseHeaders, ...(init?.headers as Record<string, string>) },
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
@@ -132,6 +155,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // --- Endpoints ---------------------------------------------------------------
+
+/**
+ * Fetch (or auto-create) the authenticated user's portfolio.
+ * The backend uses the JWT to resolve the user UUID and creates a $100k paper
+ * portfolio on first call. Always call after setAuthToken() is set.
+ */
+export function getMyPortfolio(): Promise<PortfolioOut> {
+  return request<PortfolioOut>("/api/v1/users/me/portfolio");
+}
 
 export function createPortfolio(
   user: string,

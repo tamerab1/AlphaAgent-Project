@@ -4,6 +4,7 @@
 
 import {
   API_BASE_URL,
+  getAuthToken,
   type AnalystDecision,
   type RiskDecision,
 } from "@/lib/api";
@@ -41,11 +42,14 @@ export async function streamAnalyze(
 ): Promise<void> {
   const body: { symbol: string; chart_image?: string } = { symbol };
   if (chartImage) body.chart_image = chartImage;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = getAuthToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(
     `${API_BASE_URL}/api/ai/${portfolioId}/analyze-chart`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body),
       signal,
     }
