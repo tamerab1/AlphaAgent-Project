@@ -80,7 +80,7 @@ class PricePoint(BaseModel):
 
 
 class Candle(BaseModel):
-    t: int    # Unix timestamp (seconds)
+    t: int  # Unix timestamp (seconds)
     o: float  # Open
     h: float  # High
     l: float  # Low
