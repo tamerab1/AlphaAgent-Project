@@ -26,6 +26,9 @@
 | 08/06/2026 | Idan | Developer / AI lead | Backend restructure to industry-standard layout: moved everything under an app/ package (core/config, db/session, models/ one file per table, schemas/ agent+api, api/ routers + deps, services/ market_data+llm) and split the single graph.py into agents/graph.py + agents/risk.py + agents/nodes/ one file per node. Updated all imports, the Dockerfile entrypoint (main:app -> app.main:app), and tests. Green: 53 tests, 99% coverage. | 2 hours | flake8 flagged the relationship forward-refs (F821) and an app name collision in main.py; fixed with TYPE_CHECKING imports and a from-import. Resolved. | Phase 5 - Next.js frontend dashboard |
 
 ||||||||
+| 09/06/2026 | Idan | Developer / AI lead | Phase 5 frontend dashboard: built the Next.js (App Router) dark-mode dashboard in TypeScript + Tailwind - summary cards (value/cash/positions/P&L), positions table, AI action log, paper/live toggle (live stays locked), and a Run Analysis button that opens the analyze-chart SSE stream and renders the analyst -> risk -> execute reasoning live, then refreshes the portfolio. Typed API client + a manual SSE frame reader. Smoke-tested the full click-through in a real browser against the live backend (FastAPI + Postgres): TSLA streamed every node, executed the BUY, cash 100k -> 95k, and the TSLA position + EXECUTED log appeared. Production build + lint clean. | 3 hours | EventSource is GET-only but our analyze-chart is a POST SSE, so I used fetch + a ReadableStream frame parser instead. A rogue local Postgres also shadowed compose's 5433 host mapping; used a throwaway Postgres on a free port for the smoke test. Resolved. | Phase 6 - demo polish (seed a 5-asset portfolio, lock the demo path) |
+
+||||||||
 
 
 
