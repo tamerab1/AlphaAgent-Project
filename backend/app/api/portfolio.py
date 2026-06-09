@@ -3,12 +3,13 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_portfolio_or_404
 from app.db.session import get_db
-from app.models import Portfolio
+from app.models import Portfolio, Trade
 from app.schemas.api import (
     PortfolioCreate,
     PortfolioOut,
     PortfolioStatus,
     PositionOut,
+    TradeOut,
 )
 from app.services import market_data
 
@@ -57,3 +58,26 @@ def portfolio_status(portfolio_id: int, db: Session = Depends(get_db)):
         unrealized_pnl=unrealized,
         positions=positions_out,
     )
+
+
+@router.get("/portfolio/{portfolio_id}/trades", response_model=list[TradeOut])
+def portfolio_trades(portfolio_id: int, db: Session = Depends(get_db)):
+    get_portfolio_or_404(db, portfolio_id)
+    trades = (
+        db.query(Trade)
+        .filter(Trade.portfolio_id == portfolio_id)
+        .order_by(Trade.created_at.desc())
+        .all()
+    )
+    return [
+        TradeOut(
+            id=t.id,
+            symbol=t.symbol,
+            side=t.side,
+            qty=t.qty,
+            price=t.price,
+            rationale=t.rationale,
+            created_at=t.created_at,
+        )
+        for t in trades
+    ]
