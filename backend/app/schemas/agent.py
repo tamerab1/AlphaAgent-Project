@@ -23,6 +23,15 @@ class RiskDecision(BaseModel):
     adjusted_pct: float = Field(ge=0.0, le=1.0)
 
 
+class DebateArgument(BaseModel):
+    """One side's case in the analyst debate (bull or bear)."""
+
+    stance: Literal["bull", "bear"]
+    thesis: str
+    key_points: list[str] = Field(default_factory=list)
+    conviction: float = Field(ge=0.0, le=1.0)
+
+
 class ChartReading(BaseModel):
     """Visual read of an uploaded chart screenshot (multimodal analyst)."""
 
@@ -34,12 +43,24 @@ class ChartReading(BaseModel):
 
 
 class MarketData(BaseModel):
-    """Ingested market context for a symbol (mocked in Phase 2)."""
+    """Ingested market context for a symbol.
+
+    Base fields (price/rsi/headlines) come from ``get_market_data``; the optional
+    technical fields are enriched by the ingest node from ``get_asset_detail`` so
+    the agents can reason over the full picture, not just RSI.
+    """
 
     symbol: str
     price: float
     rsi: float
     headlines: list[str] = Field(default_factory=list)
+    # Optional technical context (None when unavailable).
+    macd_signal: Optional[Literal["bullish", "bearish", "neutral"]] = None
+    ma50: Optional[float] = None
+    ma200: Optional[float] = None
+    support: Optional[float] = None
+    resistance: Optional[float] = None
+    change_24h: Optional[float] = None
 
 
 class PortfolioSnapshot(BaseModel):
@@ -71,6 +92,8 @@ class AgentState(TypedDict, total=False):
     chart_image: Optional[str]
     market: MarketData
     portfolio: PortfolioSnapshot
+    bull: DebateArgument
+    bear: DebateArgument
     analyst: AnalystDecision
     risk: RiskDecision
     executed: bool

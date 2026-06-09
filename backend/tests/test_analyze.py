@@ -29,7 +29,9 @@ def _events(resp):
 
 def test_analyze_streams_nodes_and_done(api_client, monkeypatch):
     client, _ = api_client
-    monkeypatch.setattr(llm, "analyze", lambda m, p: _decision("BUY"))
+    monkeypatch.setattr(
+        llm, "judge", lambda m, p, bull, bear, chart_image=None: _decision("BUY")
+    )
     pid = _create(client)
     resp = client.post(f"/api/ai/{pid}/analyze-chart", json={"symbol": "AAPL"})
     assert resp.status_code == 200
@@ -42,7 +44,9 @@ def test_analyze_streams_nodes_and_done(api_client, monkeypatch):
 
 def test_analyze_buy_persists_trade_and_logs(api_client, monkeypatch):
     client, _ = api_client
-    monkeypatch.setattr(llm, "analyze", lambda m, p: _decision("BUY"))
+    monkeypatch.setattr(
+        llm, "judge", lambda m, p, bull, bear, chart_image=None: _decision("BUY")
+    )
     pid = _create(client, cash=100000.0)
 
     resp = client.post(f"/api/ai/{pid}/analyze-chart", json={"symbol": "AAPL"})
@@ -63,7 +67,9 @@ def test_analyze_buy_persists_trade_and_logs(api_client, monkeypatch):
 
 def test_analyze_hold_records_run_without_trade(api_client, monkeypatch):
     client, _ = api_client
-    monkeypatch.setattr(llm, "analyze", lambda m, p: _decision("HOLD", pct=0.0))
+    monkeypatch.setattr(
+        llm, "judge", lambda m, p, bull, bear, chart_image=None: _decision("HOLD", pct=0.0)
+    )
     pid = _create(client)
 
     resp = client.post(f"/api/ai/{pid}/analyze-chart", json={"symbol": "AAPL"})
@@ -80,7 +86,9 @@ def test_analyze_hold_records_run_without_trade(api_client, monkeypatch):
 
 def test_analyze_sell_reduces_position(api_client, monkeypatch):
     client, Session = api_client
-    monkeypatch.setattr(llm, "analyze", lambda m, p: _decision("SELL", pct=0.5))
+    monkeypatch.setattr(
+        llm, "judge", lambda m, p, bull, bear, chart_image=None: _decision("SELL", pct=0.5)
+    )
     pid = _create(client)
 
     db = Session()
@@ -103,7 +111,9 @@ def test_analyze_sell_reduces_position(api_client, monkeypatch):
 
 def test_analyze_buy_adds_to_existing_position(api_client, monkeypatch):
     client, Session = api_client
-    monkeypatch.setattr(llm, "analyze", lambda m, p: _decision("BUY", pct=0.02))
+    monkeypatch.setattr(
+        llm, "judge", lambda m, p, bull, bear, chart_image=None: _decision("BUY", pct=0.02)
+    )
     pid = _create(client)
 
     db = Session()

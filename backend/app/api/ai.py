@@ -19,7 +19,15 @@ _DEFAULT_NEWS_SYMBOLS = ["BTC", "ETH", "SOL", "NVDA", "AAPL", "TSLA", "MSFT", "S
 
 router = APIRouter(prefix="/api", tags=["ai"])
 
-NODE_NAMES = {"ingest", "analyst_agent", "risk_agent", "execute", "log_rejection"}
+NODE_NAMES = {
+    "ingest",
+    "bull_agent",
+    "bear_agent",
+    "judge_agent",
+    "risk_agent",
+    "execute",
+    "log_rejection",
+}
 
 
 @router.get("/ai/{portfolio_id}/logs", response_model=list[AgentRunOut])
@@ -151,9 +159,15 @@ def _node_payload(name: str, output: dict) -> dict:
     log = output.get("log")
     if log:
         payload["message"] = log[-1]
-    for key in ("market", "analyst", "risk"):
+    for key in ("market", "bull", "bear", "analyst", "risk"):
         if key in output:
             payload[key] = output[key].model_dump()
+    # The bull/bear nodes don't write the log channel (they run in parallel);
+    # surface their thesis as the stream message instead.
+    if "message" not in payload and "bull" in output:
+        payload["message"] = f"Bull: {output['bull'].thesis}"
+    if "message" not in payload and "bear" in output:
+        payload["message"] = f"Bear: {output['bear'].thesis}"
     if "executed" in output:
         payload["executed"] = output["executed"]
     return payload

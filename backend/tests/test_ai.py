@@ -2,12 +2,14 @@ import pytest
 
 from app.agents import graph
 from app.agents.risk import assess_risk
+from app.core.config import settings
 from app.schemas.agent import AnalystDecision, MarketData, PortfolioSnapshot
 from app.services import llm
 
 
 @pytest.fixture(autouse=True)
 def _no_api_key(monkeypatch):
+    monkeypatch.setattr(settings, "openai_api_key", "")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
 
@@ -86,16 +88,22 @@ def test_risk_note_mock():
 
 
 def test_graph_executes_buy(monkeypatch):
-    monkeypatch.setattr(llm, "analyze", lambda m, p: _decision("BUY"))
+    monkeypatch.setattr(
+        llm, "judge", lambda m, p, bull, bear, chart_image=None: _decision("BUY")
+    )
     result = graph.build_graph().invoke(
         {"symbol": "AAPL", "market": _market(), "portfolio": _portfolio()}
     )
     assert result["executed"] is True
     assert result["risk"].approved is True
+    assert result["bull"].stance == "bull"
+    assert result["bear"].stance == "bear"
 
 
 def test_graph_rejects_hold(monkeypatch):
-    monkeypatch.setattr(llm, "analyze", lambda m, p: _decision("HOLD", pct=0.0))
+    monkeypatch.setattr(
+        llm, "judge", lambda m, p, bull, bear, chart_image=None: _decision("HOLD", pct=0.0)
+    )
     result = graph.build_graph().invoke(
         {"symbol": "AAPL", "market": _market(), "portfolio": _portfolio()}
     )
@@ -103,10 +111,30 @@ def test_graph_rejects_hold(monkeypatch):
 
 
 def test_graph_ingest_mocks_market(monkeypatch):
-    monkeypatch.setattr(llm, "analyze", lambda m, p: _decision("HOLD", pct=0.0))
+    monkeypatch.setattr(
+        llm, "judge", lambda m, p, bull, bear, chart_image=None: _decision("HOLD", pct=0.0)
+    )
     result = graph.build_graph().invoke({"symbol": "AAPL"})
     assert result["market"].symbol == "AAPL"
     assert result["executed"] is False
+
+
+def test_mock_debate_sides():
+    bull = llm.debate_bull(_market(), _portfolio())
+    bear = llm.debate_bear(_market(), _portfolio())
+    assert bull.stance == "bull" and bear.stance == "bear"
+    assert 0.0 <= bull.conviction <= 1.0 and 0.0 <= bear.conviction <= 1.0
+
+
+def test_graph_runs_debate_end_to_end():
+    """Full graph in mock mode: bull and bear argue, then the judge decides."""
+    result = graph.build_graph().invoke(
+        {"symbol": "AAPL", "market": _market(rsi=20.0), "portfolio": _portfolio()}
+    )
+    assert result["bull"].stance == "bull"
+    assert result["bear"].stance == "bear"
+    assert result["bull"].key_points and result["bear"].key_points
+    assert result["analyst"].action in {"BUY", "SELL", "HOLD"}
 
 
 def test_risk_rejects_insufficient_cash():
