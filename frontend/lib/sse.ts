@@ -36,14 +36,17 @@ export async function streamAnalyze(
   portfolioId: number,
   symbol: string,
   onEvent: (event: AnalyzeEvent) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  chartImage?: string | null
 ): Promise<void> {
+  const body: { symbol: string; chart_image?: string } = { symbol };
+  if (chartImage) body.chart_image = chartImage;
   const res = await fetch(
     `${API_BASE_URL}/api/ai/${portfolioId}/analyze-chart`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol }),
+      body: JSON.stringify(body),
       signal,
     }
   );

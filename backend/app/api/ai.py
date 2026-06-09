@@ -50,7 +50,11 @@ async def analyze_chart(
     # the engine now and open a fresh session bound to it when we persist.
     bind = db.get_bind()
     graph = build_graph()
-    state = {"symbol": body.symbol, "portfolio": snapshot}
+    state = {
+        "symbol": body.symbol,
+        "portfolio": snapshot,
+        "chart_image": body.chart_image,
+    }
 
     async def event_stream():
         final: dict = {}

@@ -44,6 +44,7 @@ class AgentState(TypedDict, total=False):
     """Mutable state threaded through the LangGraph flow."""
 
     symbol: str
+    chart_image: Optional[str]
     market: MarketData
     portfolio: PortfolioSnapshot
     analyst: AnalystDecision

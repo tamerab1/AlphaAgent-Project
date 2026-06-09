@@ -61,6 +61,16 @@ def test_mock_analyze_hold_has_no_target():
     assert d.stop_loss is None
 
 
+def test_mock_analyze_with_chart_image_notes_it():
+    d = llm.analyze(
+        _market(rsi=20.0),
+        _portfolio(),
+        chart_image="data:image/png;base64,AAAA",
+    )
+    assert d.action == "BUY"
+    assert "chart image" in d.reasoning.lower()
+
+
 def test_risk_note_mock():
     note = llm.risk_note(_market(), _decision("BUY"))
     assert "risk note" in note.lower()

@@ -23,7 +23,26 @@ export default function AnalysisPanel({
   const [events, setEvents] = useState<AnalyzeEvent[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chartImage, setChartImage] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose a PNG or JPG image.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setChartImage(reader.result as string);
+    reader.readAsDataURL(file); // -> "data:image/png;base64,..."
+  }
+
+  function clearImage() {
+    setChartImage(null);
+    if (fileRef.current) fileRef.current.value = "";
+  }
 
   async function run() {
     const sym = symbol.trim().toUpperCase();
@@ -38,7 +57,8 @@ export default function AnalysisPanel({
         portfolioId,
         sym,
         (event) => setEvents((prev) => [...prev, event]),
-        controller.signal
+        controller.signal,
+        chartImage
       );
       onComplete();
     } catch (err) {
@@ -76,6 +96,37 @@ export default function AnalysisPanel({
             {running ? "Analyzing…" : "Run Analysis"}
           </button>
         </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <label className="cursor-pointer rounded-md border border-border px-3 py-1.5 text-sm text-muted transition hover:text-white">
+          {chartImage ? "Change chart" : "Attach chart (optional)"}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/jpeg"
+            onChange={onPickImage}
+            disabled={running}
+            className="hidden"
+          />
+        </label>
+        {chartImage && (
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={chartImage}
+              alt="chart preview"
+              className="h-10 w-16 rounded border border-border object-cover"
+            />
+            <button
+              onClick={clearImage}
+              disabled={running}
+              className="text-xs text-muted underline hover:text-white"
+            >
+              Remove
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (

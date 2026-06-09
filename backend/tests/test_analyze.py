@@ -125,3 +125,17 @@ def test_analyze_404_for_missing_portfolio(api_client):
     client, _ = api_client
     resp = client.post("/api/ai/999/analyze-chart", json={"symbol": "AAPL"})
     assert resp.status_code == 404
+
+
+def test_analyze_accepts_chart_image(api_client):
+    client, _ = api_client
+    pid = _create(client)
+    resp = client.post(
+        f"/api/ai/{pid}/analyze-chart",
+        json={"symbol": "AAPL", "chart_image": "data:image/png;base64,AAAA"},
+    )
+    assert resp.status_code == 200
+    assert '"node": "done"' in resp.text
+
+    logs = client.get(f"/api/ai/{pid}/logs").json()
+    assert "chart image" in logs[0]["analyst"]["reasoning"].lower()

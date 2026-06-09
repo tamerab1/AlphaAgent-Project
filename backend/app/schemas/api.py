@@ -48,6 +48,8 @@ class TradeOut(BaseModel):
 # --- AI ----------------------------------------------------------------------
 class AnalyzeRequest(BaseModel):
     symbol: str
+    # Optional chart screenshot as a base64 data URL (data:image/png;base64,...).
+    chart_image: Optional[str] = None
 
 
 class AgentRunOut(BaseModel):
