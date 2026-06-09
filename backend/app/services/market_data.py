@@ -13,8 +13,8 @@ def get_market_data(symbol: str) -> MarketData:
 
     Returns deterministic seed data by default so the demo never depends on a
     live API. When ``MARKET_DATA_LIVE`` is set, fetches live price/RSI
-    (yfinance) and headlines (Tavily), falling back to seed values per-field
-    on any failure.
+    (Twelve Data, then Stooq) and headlines (Tavily), falling back to seed
+    values per-field on any failure.
     """
     seed = _seed_market_data(symbol)
     if not settings.market_data_live:
@@ -55,9 +55,16 @@ def _seed_market_data(symbol: str) -> MarketData:
     )
 
 
+# Symbols Twelve Data quotes as crypto pairs (e.g. BTC/USD) rather than tickers.
+CRYPTO_SYMBOLS = {"BTC", "ETH", "SOL", "DOGE", "ADA", "XRP", "BNB", "LTC"}
+
+
 def _live_market_data(symbol: str, seed: MarketData) -> MarketData:  # pragma: no cover
     price, rsi, source = seed.price, seed.rsi, "seed"
-    for name, fetch in (("stooq", _stooq_price_rsi), ("yfinance", _yfinance_price_rsi)):
+    for name, fetch in (
+        ("twelvedata", _twelvedata_price_rsi),
+        ("stooq", _stooq_price_rsi),
+    ):
         try:
             price, rsi = fetch(symbol)
             source = name
@@ -80,6 +87,34 @@ def _live_market_data(symbol: str, seed: MarketData) -> MarketData:  # pragma: n
     return MarketData(symbol=symbol, price=price, rsi=rsi, headlines=headlines)
 
 
+def _twelvedata_price_rsi(symbol: str) -> tuple[float, float]:  # pragma: no cover
+    """Daily price + RSI from Twelve Data (free API key; stocks and crypto)."""
+    if not settings.twelve_data_api_key:
+        raise ValueError("TWELVE_DATA_API_KEY not set")
+    import httpx
+
+    td_symbol = f"{symbol}/USD" if symbol.upper() in CRYPTO_SYMBOLS else symbol
+    resp = httpx.get(
+        "https://api.twelvedata.com/time_series",
+        params={
+            "symbol": td_symbol,
+            "interval": "1day",
+            "outputsize": 30,
+            "apikey": settings.twelve_data_api_key,
+        },
+        timeout=8.0,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    if data.get("status") == "error" or "values" not in data:
+        raise ValueError(data.get("message", "Twelve Data error"))
+    # API returns newest-first; reverse to oldest -> newest for RSI.
+    closes = [float(v["close"]) for v in reversed(data["values"]) if v.get("close")]
+    if not closes:
+        raise ValueError(f"no closes for {symbol}")
+    return closes[-1], _compute_rsi(closes)
+
+
 def _stooq_price_rsi(symbol: str) -> tuple[float, float]:  # pragma: no cover
     """Daily price + RSI from Stooq's free CSV endpoint (no API key)."""
     import httpx
@@ -98,15 +133,6 @@ def _stooq_price_rsi(symbol: str) -> tuple[float, float]:  # pragma: no cover
     ]
     if not closes:
         raise ValueError(f"no closes for {symbol}")
-    return float(closes[-1]), _compute_rsi(closes)
-
-
-def _yfinance_price_rsi(symbol: str) -> tuple[float, float]:  # pragma: no cover
-    import yfinance as yf
-
-    closes = yf.Ticker(symbol).history(period="3mo")["Close"].dropna().tolist()
-    if not closes:
-        raise ValueError(f"No price history for {symbol}")
     return float(closes[-1]), _compute_rsi(closes)
 
 
