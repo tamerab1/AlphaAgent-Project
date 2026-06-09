@@ -45,7 +45,9 @@
       "Bash(python -c \"from app.schemas.api import Candle; from app.services.market_data import get_klines, _synthetic_klines; from app.api.market import market_klines; print\\('All backend imports OK'\\)\")",
       "Bash(python -m pytest tests/ -x -q --tb=short)",
       "Bash(black app/schemas/api.py)",
-      "Bash(python -m black app/schemas/api.py)"
+      "Bash(python -m black app/schemas/api.py)",
+      "Bash(python -c ' *)",
+      "Bash(python -m pytest tests/ -x -q)"
     ]
   }
 }

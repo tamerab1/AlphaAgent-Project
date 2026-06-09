@@ -133,6 +133,44 @@ BINANCE_PAIRS: dict[str, str] = {
     "LTC": "LTCUSDT",
 }
 
+# Realistic baseline prices used by synthetic fallbacks when Binance is blocked.
+# Keeps charts at the right magnitude even without live data.
+_SYNTHETIC_PRICES: dict[str, float] = {
+    "BTC": 94000.0,
+    "ETH": 3200.0,
+    "SOL": 185.0,
+    "BNB": 600.0,
+    "XRP": 0.55,
+    "ADA": 0.45,
+    "DOGE": 0.12,
+    "LTC": 85.0,
+    "AAPL": 190.0,
+    "MSFT": 415.0,
+    "TSLA": 175.0,
+    "NVDA": 875.0,
+    "GOOGL": 175.0,
+    "AMZN": 185.0,
+    "META": 530.0,
+    "SPY": 540.0,
+}
+
+# Seconds per Binance kline interval — used to space synthetic candle timestamps.
+_INTERVAL_SECONDS: dict[str, int] = {
+    "1m": 60,
+    "3m": 180,
+    "5m": 300,
+    "15m": 900,
+    "30m": 1800,
+    "1h": 3600,
+    "2h": 7200,
+    "4h": 14400,
+    "6h": 21600,
+    "12h": 43200,
+    "1d": 86400,
+    "3d": 259200,
+    "1w": 604800,
+}
+
 
 def _is_crypto_symbol(symbol: str) -> bool:
     """True for symbols that can be priced via Binance USDT pairs."""
@@ -255,7 +293,13 @@ def get_execution_price(symbol: str) -> float:
         logger.info("execution price %s via binance (%s): %.4f", sym, pair, price)
         return price
     except Exception as exc:
-        logger.debug("binance skip %s (%s): %s", sym, pair, exc)
+        logger.warning(
+            "binance spot price failed %s (%s) [%s]: %s — using market_data fallback",
+            sym,
+            pair,
+            type(exc).__name__,
+            exc,
+        )
     return get_market_data(sym).price
 
 
@@ -266,7 +310,7 @@ def _binance_spot_price(pair: str) -> float:  # pragma: no cover
     resp = httpx.get(
         "https://api.binance.com/api/v3/ticker/price",
         params={"symbol": pair},
-        timeout=4.0,
+        timeout=10.0,
     )
     resp.raise_for_status()
     price = float(resp.json()["price"])
@@ -291,7 +335,7 @@ def _binance_batch_quotes(symbols: list[str]) -> dict[str, dict]:  # pragma: no 
             resp = httpx.get(
                 "https://api.binance.com/api/v3/ticker/24hr",
                 params={"symbol": pair},
-                timeout=5.0,
+                timeout=10.0,
             )
             resp.raise_for_status()
             d = resp.json()
@@ -300,7 +344,13 @@ def _binance_batch_quotes(symbols: list[str]) -> dict[str, dict]:  # pragma: no 
             if price > 0:
                 result[sym] = {"symbol": sym, "price": price, "change_24h": change}
         except Exception as exc:
-            logger.debug("binance single quote skip %s (%s): %s", sym, pair, exc)
+            logger.warning(
+                "binance 24hr ticker failed %s (%s) [%s]: %s",
+                sym,
+                pair,
+                type(exc).__name__,
+                exc,
+            )
     return result
 
 
@@ -311,10 +361,11 @@ def _binance_detail_series(
     import httpx
 
     pair = BINANCE_PAIRS.get(symbol.upper(), f"{symbol.upper()}USDT")
+    logger.info("binance klines request %s (pair=%s)", symbol, pair)
     klines_resp = httpx.get(
         "https://api.binance.com/api/v3/klines",
         params={"symbol": pair, "interval": "1d", "limit": 200},
-        timeout=8.0,
+        timeout=12.0,
     )
     klines_resp.raise_for_status()
     closes = [float(k[4]) for k in klines_resp.json()]
@@ -323,7 +374,7 @@ def _binance_detail_series(
     ticker_resp = httpx.get(
         "https://api.binance.com/api/v3/ticker/24hr",
         params={"symbol": pair},
-        timeout=5.0,
+        timeout=10.0,
     )
     ticker_resp.raise_for_status()
     t = ticker_resp.json()
@@ -345,11 +396,32 @@ def get_klines(symbol: str, interval: str = "1d", limit: int = 100) -> list[dict
     if _is_crypto_symbol(sym):  # pragma: no cover
         try:
             candles = _binance_klines(sym, interval, limit)
+            logger.info(
+                "binance klines OK %s interval=%s limit=%d → %d candles",
+                sym,
+                interval,
+                limit,
+                len(candles),
+            )
         except Exception as exc:
-            logger.debug("binance klines failed for %s: %s", sym, exc)
+            logger.warning(
+                "binance klines FAILED %s interval=%s limit=%d [%s]: %s"
+                " — falling back to synthetic candles",
+                sym,
+                interval,
+                limit,
+                type(exc).__name__,
+                exc,
+            )
 
     if not candles:
-        candles = _synthetic_klines(sym, limit)
+        logger.info(
+            "generating synthetic klines for %s interval=%s limit=%d",
+            sym,
+            interval,
+            limit,
+        )
+        candles = _synthetic_klines(sym, interval, limit)
 
     _cache_put(cache_key, candles)
     return candles
@@ -362,10 +434,17 @@ def _binance_klines(
     import httpx
 
     pair = BINANCE_PAIRS.get(symbol, f"{symbol}USDT")
+    logger.info(
+        "binance klines fetch %s (pair=%s interval=%s limit=%d)",
+        symbol,
+        pair,
+        interval,
+        limit,
+    )
     resp = httpx.get(
         "https://api.binance.com/api/v3/klines",
         params={"symbol": pair, "interval": interval, "limit": limit},
-        timeout=8.0,
+        timeout=12.0,
     )
     resp.raise_for_status()
     candles = []
@@ -383,28 +462,90 @@ def _binance_klines(
     return candles
 
 
-def _synthetic_klines(symbol: str, limit: int = 100) -> list[dict]:
-    """Deterministic OHLCV candles derived from seed prices (stocks / offline)."""
-    seed_int = sum(ord(c) for c in symbol)
+def _synthetic_klines(
+    symbol: str, interval: str = "1d", limit: int = 100
+) -> list[dict]:
+    """Realistic deterministic OHLCV candles (production fallback when Binance is blocked).
+
+    Uses a table of known realistic prices for common assets so charts render at
+    the correct magnitude.  Price motion is a sum of three sine waves at different
+    frequencies (multi-timeframe structure) plus a small trend drift, all seeded
+    deterministically from the symbol name.  Always returns exactly *limit* candles
+    with timestamps spaced by the requested *interval*.
+    """
+    sym = symbol.upper()
+    seed_int = sum(ord(c) for c in sym)
+
+    # Realistic baseline; for unknowns derive a plausible order-of-magnitude price.
+    base_price = _SYNTHETIC_PRICES.get(
+        sym,
+        round(10.0 ** (1 + (seed_int % 4)) * (1.0 + (seed_int % 97) / 100.0), 2),
+    )
+
+    interval_secs = _INTERVAL_SECONDS.get(interval, 86400)
     now = int(time.time())
-    one_day = 86400
-    end_price = round(50.0 + (seed_int % 200), 2)
-    start_price = end_price / 1.05
-    candles = []
+
+    # Deterministic phase seeds in (0, 1) unique to this symbol.
+    s1 = ((seed_int * 17 + 3) % 100) / 100.0
+    s2 = ((seed_int * 31 + 7) % 100) / 100.0
+    s3 = ((seed_int * 53 + 11) % 100) / 100.0
+
+    # Intraday volatility scales with sqrt(interval / 1d) so short bars look tight.
+    vol_scale = math.sqrt(interval_secs / 86400.0)
+
+    # Small linear trend: ±5 % total across the full series (never compounds away).
+    trend_dir = 1.0 if (seed_int % 3) != 2 else -1.0
+    total_drift = trend_dir * 0.05
+
+    dec = _price_decimals(base_price)
+    candles: list[dict] = []
+
     for i in range(limit):
-        pct = i / max(limit - 1, 1)
-        base = start_price + (end_price - start_price) * pct
-        s = (seed_int + i * 7) % 99
-        close = round(base * (1 + math.sin(s * 0.14) * 0.015), 4)
-        open_p = round(base * (1 + math.sin(s * 0.11 + 1) * 0.012), 4)
-        high = round(max(open_p, close) * (1 + abs(math.sin(s * 0.3)) * 0.008), 4)
-        low = round(min(open_p, close) * (1 - abs(math.cos(s * 0.3)) * 0.008), 4)
-        volume = round(close * 1_000_000 * (0.5 + abs(math.sin(s * 0.5)) * 0.5), 2)
-        t = now - (limit - i) * one_day
+        frac = i / max(limit - 1, 1)  # 0.0 → 1.0 across the series
+
+        # Additive multi-harmonic oscillation — price orbits base_price, never escapes.
+        wave = (
+            math.sin(i * 0.21 + s1 * math.pi) * 0.025
+            + math.sin(i * 0.07 + s2 * math.pi) * 0.015
+            + math.sin(i * 0.03 + s3 * math.pi) * 0.008
+        )
+        close_frac = 1.0 + wave * vol_scale + total_drift * frac
+        close = round(max(base_price * close_frac, base_price * 0.5), dec)
+
+        # Candle body fraction, interval-scaled.
+        body_frac = vol_scale * 0.007 * (0.4 + abs(math.sin(i * 0.55 + s2 * 3)) * 0.6)
+        bull = (wave + total_drift * frac) >= 0
+        body = close * body_frac
+        open_p = round(
+            max(close - body, close * 0.9) if bull else min(close + body, close * 1.1),
+            dec,
+        )
+
+        # Wicks — smaller than body, interval-scaled.
+        wick_frac = vol_scale * 0.003
+        upper_wick = close * wick_frac * (0.5 + abs(math.sin(i * 0.80 + s2 * 5)) * 1.0)
+        lower_wick = close * wick_frac * (0.5 + abs(math.cos(i * 0.80 + s3 * 5)) * 1.0)
+        high = round(max(open_p, close) + upper_wick, dec)
+        low = round(max(min(open_p, close) - lower_wick, close * 0.001), dec)
+
+        volume = round(
+            base_price * 500_000 * (0.5 + abs(math.sin(i * 0.44 + s3 * 4)) * 1.0), 2
+        )
+        t = now - (limit - i) * interval_secs
         candles.append(
             {"t": t, "o": open_p, "h": high, "l": low, "c": close, "v": volume}
         )
+
     return candles
+
+
+def _price_decimals(price: float) -> int:
+    """Decimal places appropriate for a given price magnitude."""
+    if price >= 100:
+        return 2
+    if price >= 1:
+        return 4
+    return 6
 
 
 def get_news_data(symbol: str) -> list[dict]:
@@ -639,15 +780,30 @@ def _detail_series(symbol: str) -> tuple[list[float], float, float, float, str]:
 
 
 def _synth_closes(symbol: str, n: int = 120) -> list[float]:
-    """Deterministic wavy series around the seed price (offline chart)."""
-    base = _seed_market_data(symbol).price
-    seed = sum(ord(c) for c in symbol)
+    """Deterministic wavy close-price series for the offline line chart.
+
+    Uses the realistic price table so BTC renders near $94k, not the tiny
+    seed-formula value (~$67) that was showing in production.
+    """
+    sym = symbol.upper()
+    seed_int = sum(ord(c) for c in sym)
+    base = _SYNTHETIC_PRICES.get(sym, _seed_market_data(sym).price)
+    dec = _price_decimals(base)
+
+    s1 = ((seed_int * 17 + 3) % 100) / 100.0
+    s2 = ((seed_int * 31 + 7) % 100) / 100.0
+    trend_dir = 1.0 if (seed_int % 3) != 2 else -1.0
+    total_drift = trend_dir * 0.05  # ±5% total across series — never compounds
+
     out = []
     for i in range(n):
-        wave = math.sin(i * 0.15 + (seed % 7)) * (base * 0.03) + math.sin(
-            i * 0.05 + 1.1
-        ) * (base * 0.02)
-        out.append(round(max(base + wave, 0.01), 4))
+        frac = i / max(n - 1, 1)
+        wave = (
+            math.sin(i * 0.21 + s1 * math.pi) * 0.025
+            + math.sin(i * 0.07 + s2 * math.pi) * 0.015
+        )
+        close_frac = 1.0 + wave + total_drift * frac
+        out.append(round(max(base * close_frac, base * 0.5), dec))
     return out
 
 
