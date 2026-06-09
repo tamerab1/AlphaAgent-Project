@@ -164,7 +164,7 @@ export default function DashboardPage() {
       />
 
       {/* ── Main content ── */}
-      <main className="mx-auto max-w-[1600px] space-y-3.5 px-4 py-4 lg:px-6">
+      <main className="mx-auto max-w-[1600px] space-y-1 px-2 py-2 sm:px-4 lg:px-6">
         {loading ? (
           <div className="flex h-[70vh] items-center justify-center">
             <div className="flex flex-col items-center gap-3">
@@ -178,7 +178,7 @@ export default function DashboardPage() {
             <NAVWidget status={display} />
 
             {/* ── Row 2: Price Chart + AI Analysis ── */}
-            <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-12">
+            <div className="grid grid-cols-1 gap-1 xl:grid-cols-12">
               <div className="xl:col-span-7">
                 <PriceChart asset={assetData} />
               </div>
@@ -188,13 +188,13 @@ export default function DashboardPage() {
             </div>
 
             {/* ── Row 3: Portfolio positions + News Feed ── */}
-            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-1 lg:grid-cols-2">
               <PortfolioWidget positions={display.positions} />
               <NewsWidget selectedAsset={selectedAsset} />
             </div>
 
             {/* ── Row 4: AI Logs + Analysis Panel ── */}
-            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-1 lg:grid-cols-2">
               <AILogsWidget logs={logs} />
               {portfolioId !== null && (
                 <AnalysisPanel

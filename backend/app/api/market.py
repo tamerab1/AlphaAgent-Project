@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.schemas.agent import MarketData, PortfolioSnapshot
-from app.schemas.api import AssetDetail, Quote
+from app.schemas.api import AssetDetail, Candle, Quote
 from app.services import llm, market_data
 
 router = APIRouter(prefix="/api", tags=["market"])
@@ -16,6 +16,12 @@ def market_quotes(symbols: str = ""):
     """Live price + 24h change for several tickers (the ticker bar), one call."""
     wanted = [s for s in symbols.split(",") if s.strip()]
     return market_data.get_quotes(wanted)
+
+
+@router.get("/market/{symbol}/klines", response_model=list[Candle])
+def market_klines(symbol: str, interval: str = "1d", limit: int = 100):
+    """OHLCV candlestick data — Binance for crypto, synthetic for stocks/offline."""
+    return market_data.get_klines(symbol, interval, limit)
 
 
 @router.get("/market/{symbol}", response_model=AssetDetail)

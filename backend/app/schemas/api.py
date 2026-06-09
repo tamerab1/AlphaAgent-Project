@@ -79,6 +79,15 @@ class PricePoint(BaseModel):
     p: float
 
 
+class Candle(BaseModel):
+    t: int  # Unix timestamp (seconds)
+    o: float  # Open
+    h: float  # High
+    l: float  # Low
+    c: float  # Close
+    v: float  # Quote volume
+
+
 class AssetDetail(BaseModel):
     symbol: str
     name: str

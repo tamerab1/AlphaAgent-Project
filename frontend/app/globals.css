@@ -21,3 +21,14 @@ body {
 .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: #2B3139; border-radius: 2px; }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #848E9C; }
+
+/* Invisible scrollbar for the ticker chip row on mobile — still scrollable */
+@media (max-width: 639px) {
+  .scrollbar-thin::-webkit-scrollbar { width: 0; height: 0; }
+}
+
+/* Larger tap targets on touch devices */
+@media (pointer: coarse) {
+  button { min-height: 36px; }
+  a      { min-height: 36px; }
+}
