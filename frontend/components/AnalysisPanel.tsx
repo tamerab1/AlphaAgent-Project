@@ -12,6 +12,9 @@ const NODE_LABELS: Record<string, string> = {
   done: "Done",
 };
 
+// Quick-pick symbols for the demo (seed RSI makes these decisions predictable).
+const QUICK_SYMBOLS = ["TSLA", "NVDA", "AAPL", "MSFT", "GOOGL"];
+
 export default function AnalysisPanel({
   portfolioId,
   onComplete,
@@ -96,6 +99,24 @@ export default function AnalysisPanel({
             {running ? "Analyzing…" : "Run Analysis"}
           </button>
         </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted">Quick pick:</span>
+        {QUICK_SYMBOLS.map((s) => (
+          <button
+            key={s}
+            onClick={() => setSymbol(s)}
+            disabled={running}
+            className={`rounded-full border px-2.5 py-0.5 text-xs transition disabled:opacity-60 ${
+              symbol.trim().toUpperCase() === s
+                ? "border-accent text-accent"
+                : "border-border text-muted hover:text-white"
+            }`}
+          >
+            {s}
+          </button>
+        ))}
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">

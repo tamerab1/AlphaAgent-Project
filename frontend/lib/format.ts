@@ -33,10 +33,12 @@ export function pnlColor(value: number): string {
 
 export function formatTime(iso: string): string {
   const d = new Date(iso);
+  // Always display in Israel time, regardless of the viewer's/server's timezone.
   return d.toLocaleString("en-US", {
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Asia/Jerusalem",
   });
 }
