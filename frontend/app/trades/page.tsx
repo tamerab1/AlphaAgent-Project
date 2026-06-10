@@ -9,6 +9,7 @@ import {
 import { useSession } from "@/components/AuthGate";
 import { supabase } from "@/lib/supabase";
 import TopNav from "@/components/TopNav";
+import AnalysisPanel from "@/components/AnalysisPanel";
 import {
   setAuthToken, getMyPortfolio, getMyTrades, executeTrade,
   getAssetDetail, toggleMode,
@@ -360,7 +361,7 @@ export default function TradesPage() {
           <span className="text-xs font-medium text-white">Trading Center</span>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
+        <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
 
           {/* ── Left: Trade Form ── */}
           <div className="h-fit rounded-xl border border-border bg-surface">
@@ -500,8 +501,26 @@ export default function TradesPage() {
             </div>
           </div>
 
-          {/* ── Right: Trade History ── */}
-          <div className="rounded-xl border border-border bg-surface">
+          {/* ── Right: AI Analysis Panel ── */}
+          {portfolioId !== null ? (
+            <AnalysisPanel
+              portfolioId={portfolioId}
+              defaultSymbol={symbol}
+              onComplete={refreshTrades}
+            />
+          ) : (
+            <div className="animate-pulse rounded-xl border border-border bg-surface">
+              <div className="border-b border-border px-4 py-3">
+                <div className="h-3 w-36 rounded bg-surface2" />
+              </div>
+              <div className="flex h-64 items-center justify-center">
+                <div className="h-4 w-48 rounded bg-surface2" />
+              </div>
+            </div>
+          )}
+
+          {/* ── Bottom: Trade History (full width) ── */}
+          <div className="col-span-full rounded-xl border border-border bg-surface">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold text-white">Trade History</h2>
