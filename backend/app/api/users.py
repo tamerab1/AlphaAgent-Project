@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,8 +15,28 @@ from app.schemas.profile import ProfileRead, ProfileUpdate
 from app.services import market_data
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
+logger = logging.getLogger("alphaagent")
 
 _DEFAULT_CASH = 100_000.0
+_CRYPTO_SYMBOLS = frozenset(
+    {
+        "BTC",
+        "ETH",
+        "BNB",
+        "SOL",
+        "ADA",
+        "XRP",
+        "DOGE",
+        "AVAX",
+        "MATIC",
+        "DOT",
+        "LINK",
+        "UNI",
+        "ATOM",
+        "LTC",
+        "SHIB",
+    }
+)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -111,17 +132,18 @@ def get_my_trades(
         return [
             TradeOut(
                 id=t.id,
-                symbol=t.symbol,
-                side=t.side,
-                qty=t.qty,
-                price=t.price,
-                rationale=t.rationale,
+                symbol=t.asset_symbol,
+                side=t.action,
+                qty=t.quantity,
+                price=t.entry_price,
+                rationale=t.ai_reasoning,
                 created_at=t.created_at,
             )
             for t in rows
         ]
     except Exception:
         db.rollback()
+        logger.exception("get_my_trades failed for user %s", user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not load trade history — please retry.",
@@ -225,11 +247,12 @@ def execute_manual_trade(
         trade = Trade(
             portfolio_id=portfolio.id,
             user_id=user_id,
-            symbol=symbol,
-            side=body.side,
-            qty=qty,
-            price=price,
-            rationale="Manual trade",
+            asset_symbol=symbol,
+            market_type="crypto" if symbol in _CRYPTO_SYMBOLS else "stock",
+            action=body.side,
+            quantity=qty,
+            entry_price=price,
+            ai_reasoning="Manual trade",
         )
         db.add(trade)
         db.flush()
@@ -240,11 +263,11 @@ def execute_manual_trade(
             updated_cash_balance=new_cash_balance,
             trade=TradeOut(
                 id=trade.id,
-                symbol=trade.symbol,
-                side=trade.side,
-                qty=trade.qty,
-                price=trade.price,
-                rationale=trade.rationale,
+                symbol=trade.asset_symbol,
+                side=trade.action,
+                qty=trade.quantity,
+                price=trade.entry_price,
+                rationale=trade.ai_reasoning,
                 created_at=trade.created_at,
             ),
         )
@@ -253,6 +276,7 @@ def execute_manual_trade(
         raise
     except Exception:
         db.rollback()
+        logger.exception("execute_manual_trade failed for user %s", user_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Trade could not be saved — please retry.",

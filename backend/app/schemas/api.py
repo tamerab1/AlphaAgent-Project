@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Literal, Optional
+from uuid import UUID
 
 from pydantic import BaseModel
 
@@ -36,7 +37,7 @@ class PortfolioStatus(BaseModel):
 
 
 class TradeOut(BaseModel):
-    id: int
+    id: UUID
     symbol: str
     side: str
     qty: float

@@ -103,11 +103,11 @@ def portfolio_trades(
     return [
         TradeOut(
             id=t.id,
-            symbol=t.symbol,
-            side=t.side,
-            qty=t.qty,
-            price=t.price,
-            rationale=t.rationale,
+            symbol=t.asset_symbol,
+            side=t.action,
+            qty=t.quantity,
+            price=t.entry_price,
+            rationale=t.ai_reasoning,
             created_at=t.created_at,
         )
         for t in trades

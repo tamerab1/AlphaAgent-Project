@@ -39,11 +39,11 @@ def test_portfolio_with_relationships(session):
     session.add(
         models.Trade(
             portfolio_id=portfolio.id,
-            symbol="AAPL",
-            side="BUY",
-            qty=10,
-            price=150.0,
-            rationale="momentum breakout",
+            asset_symbol="AAPL",
+            action="BUY",
+            quantity=10,
+            entry_price=150.0,
+            ai_reasoning="momentum breakout",
         )
     )
     session.add(
@@ -62,7 +62,7 @@ def test_portfolio_with_relationships(session):
     assert len(saved.positions) == 1
     assert saved.positions[0].symbol == "AAPL"
     assert len(saved.trades) == 1
-    assert saved.trades[0].side == "BUY"
+    assert saved.trades[0].action == "BUY"
     assert len(saved.agent_runs) == 1
     assert saved.agent_runs[0].executed is True
 

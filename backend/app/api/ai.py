@@ -338,10 +338,10 @@ def _apply_trade(
         Trade(
             portfolio_id=portfolio.id,
             user_id=user_id,
-            symbol=symbol,
-            side=side,
-            qty=qty,
-            price=price,
-            rationale=risk.reason,
+            asset_symbol=symbol,
+            action=side,
+            quantity=qty,
+            entry_price=price,
+            ai_reasoning=risk.reason,
         )
     )

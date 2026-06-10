@@ -1,8 +1,15 @@
+import sqlite3
+from uuid import UUID
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+
+# SQLite has no native UUID type; register a global adapter so UUID primary
+# keys (e.g. Trade.id) can be stored as String(36) in all test databases.
+sqlite3.register_adapter(UUID, str)
 
 from app.core.config import settings
 from app.db.session import Base, get_db

@@ -66,8 +66,24 @@ def test_trades_returns_newest_first(api_client):
     client, Session = api_client
     pid = _create(client)
     db = Session()
-    db.add(Trade(portfolio_id=pid, symbol="AAPL", side="BUY", qty=10.0, price=100.0))
-    db.add(Trade(portfolio_id=pid, symbol="TSLA", side="SELL", qty=5.0, price=158.0))
+    db.add(
+        Trade(
+            portfolio_id=pid,
+            asset_symbol="AAPL",
+            action="BUY",
+            quantity=10.0,
+            entry_price=100.0,
+        )
+    )
+    db.add(
+        Trade(
+            portfolio_id=pid,
+            asset_symbol="TSLA",
+            action="SELL",
+            quantity=5.0,
+            entry_price=158.0,
+        )
+    )
     db.commit()
     db.close()
     body = client.get(f"/api/portfolio/{pid}/trades").json()
