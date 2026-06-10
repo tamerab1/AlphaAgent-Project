@@ -136,9 +136,9 @@ BINANCE_PAIRS: dict[str, str] = {
 # Realistic baseline prices used by synthetic fallbacks when Binance is blocked.
 # Keeps charts at the right magnitude even without live data.
 _SYNTHETIC_PRICES: dict[str, float] = {
-    "BTC": 94000.0,
-    "ETH": 3200.0,
-    "SOL": 185.0,
+    "BTC": 61800.0,
+    "ETH": 1700.0,
+    "SOL": 65.0,
     "BNB": 600.0,
     "XRP": 0.55,
     "ADA": 0.45,
@@ -308,7 +308,7 @@ def _binance_spot_price(pair: str) -> float:  # pragma: no cover
     import httpx
 
     resp = httpx.get(
-        "https://api.binance.com/api/v3/ticker/price",
+        "https://api3.binance.com/api/v3/ticker/price",
         params={"symbol": pair},
         timeout=10.0,
     )
@@ -333,7 +333,7 @@ def _binance_batch_quotes(symbols: list[str]) -> dict[str, dict]:  # pragma: no 
         pair = BINANCE_PAIRS.get(sym, f"{sym}USDT")
         try:
             resp = httpx.get(
-                "https://api.binance.com/api/v3/ticker/24hr",
+                "https://api3.binance.com/api/v3/ticker/24hr",
                 params={"symbol": pair},
                 timeout=10.0,
             )
@@ -363,7 +363,7 @@ def _binance_detail_series(
     pair = BINANCE_PAIRS.get(symbol.upper(), f"{symbol.upper()}USDT")
     logger.info("binance klines request %s (pair=%s)", symbol, pair)
     klines_resp = httpx.get(
-        "https://api.binance.com/api/v3/klines",
+        "https://api3.binance.com/api/v3/klines",
         params={"symbol": pair, "interval": "1d", "limit": 200},
         timeout=12.0,
     )
@@ -372,7 +372,7 @@ def _binance_detail_series(
     if not closes:
         raise ValueError(f"empty klines for {pair}")
     ticker_resp = httpx.get(
-        "https://api.binance.com/api/v3/ticker/24hr",
+        "https://api3.binance.com/api/v3/ticker/24hr",
         params={"symbol": pair},
         timeout=10.0,
     )
@@ -442,7 +442,7 @@ def _binance_klines(
         limit,
     )
     resp = httpx.get(
-        "https://api.binance.com/api/v3/klines",
+        "https://api3.binance.com/api/v3/klines",
         params={"symbol": pair, "interval": interval, "limit": limit},
         timeout=12.0,
     )
@@ -695,8 +695,8 @@ def get_quotes(symbols: list[str]) -> list[dict]:
         if sym in live:
             out.append(live[sym])
         else:
-            seed = _seed_market_data(sym)
-            out.append({"symbol": sym, "price": seed.price, "change_24h": 0.0})
+            base_price = _SYNTHETIC_PRICES.get(sym, _seed_market_data(sym).price)
+            out.append({"symbol": sym, "price": base_price, "change_24h": 0.0})
     return out
 
 
