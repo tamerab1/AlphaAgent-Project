@@ -140,6 +140,11 @@ def execute_manual_trade(
     db.rollback()
     try:
         portfolio = _get_or_create_portfolio(db, user_id)
+        if portfolio.id is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Portfolio not initialized — please retry.",
+            )
         symbol = body.symbol.upper()
 
         price = market_data.get_execution_price(symbol)

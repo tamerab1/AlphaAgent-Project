@@ -280,11 +280,9 @@ def _stooq_series(
 def get_execution_price(symbol: str) -> float:
     """Return the freshest available spot price for trade execution.
 
-    Tries the Binance public ticker for every symbol by constructing a
-    {SYM}USDT pair (known pairs use the exact mapping from BINANCE_PAIRS).
-    Binance returns HTTP 400 immediately for unknown pairs (e.g. stocks) so
-    there is no latency penalty — the fall-through to regular market data is
-    near-instant.  No API key required.
+    Chain: Binance spot → Twelve Data (crypto, if key set) → detail cache →
+    _SYNTHETIC_PRICES baseline.  Does NOT recurse through get_market_data to
+    avoid a redundant second Binance attempt when the IP is banned (418/429).
     """
     sym = symbol.upper()
     pair = BINANCE_PAIRS.get(sym, f"{sym}USDT")
@@ -294,13 +292,29 @@ def get_execution_price(symbol: str) -> float:
         return price
     except Exception as exc:
         logger.warning(
-            "binance spot price failed %s (%s) [%s]: %s — using market_data fallback",
+            "binance execution price %s (%s) [%s]: %s — trying fallbacks",
             sym,
             pair,
             type(exc).__name__,
             exc,
         )
-    return get_market_data(sym).price
+    if _is_crypto_symbol(sym) and settings.twelve_data_api_key:  # pragma: no cover
+        try:
+            td_price, _ = _twelvedata_price_rsi(sym)
+            if td_price > 0:
+                logger.info("execution price %s via twelvedata: %.4f", sym, td_price)
+                return td_price
+        except Exception as td_exc:
+            logger.warning(
+                "twelvedata execution price fallback failed %s: %s", sym, td_exc
+            )
+    cached = _cache_get(f"detail:{sym}")
+    if isinstance(cached, dict) and cached.get("price", 0) > 0:
+        logger.info("execution price %s from detail cache: %.4f", sym, cached["price"])
+        return cached["price"]
+    fallback = _SYNTHETIC_PRICES.get(sym, _seed_market_data(sym).price)
+    logger.info("execution price %s from synthetic baseline: %.4f", sym, fallback)
+    return fallback
 
 
 def _binance_spot_price(pair: str) -> float:  # pragma: no cover
@@ -312,6 +326,12 @@ def _binance_spot_price(pair: str) -> float:  # pragma: no cover
         params={"symbol": pair},
         timeout=10.0,
     )
+    if resp.status_code in (418, 429):
+        raise httpx.HTTPStatusError(
+            f"Binance IP ban/rate-limit ({resp.status_code}) for {pair}",
+            request=resp.request,
+            response=resp,
+        )
     resp.raise_for_status()
     price = float(resp.json()["price"])
     if price <= 0:
@@ -337,6 +357,13 @@ def _binance_batch_quotes(symbols: list[str]) -> dict[str, dict]:  # pragma: no 
                 params={"symbol": pair},
                 timeout=10.0,
             )
+            if resp.status_code in (418, 429):
+                logger.warning(
+                    "binance IP ban/rate-limit (%d) for %s — skipping",
+                    resp.status_code,
+                    sym,
+                )
+                continue
             resp.raise_for_status()
             d = resp.json()
             price = float(d.get("lastPrice") or 0.0)
@@ -367,6 +394,12 @@ def _binance_detail_series(
         params={"symbol": pair, "interval": "1d", "limit": 200},
         timeout=12.0,
     )
+    if klines_resp.status_code in (418, 429):
+        raise httpx.HTTPStatusError(
+            f"Binance IP ban/rate-limit ({klines_resp.status_code}) for {pair}",
+            request=klines_resp.request,
+            response=klines_resp,
+        )
     klines_resp.raise_for_status()
     closes = [float(k[4]) for k in klines_resp.json()]
     if not closes:
@@ -376,6 +409,12 @@ def _binance_detail_series(
         params={"symbol": pair},
         timeout=10.0,
     )
+    if ticker_resp.status_code in (418, 429):
+        raise httpx.HTTPStatusError(
+            f"Binance IP ban/rate-limit ({ticker_resp.status_code}) for {pair}",
+            request=ticker_resp.request,
+            response=ticker_resp,
+        )
     ticker_resp.raise_for_status()
     t = ticker_resp.json()
     high = float(t.get("highPrice") or closes[-1])
@@ -446,6 +485,12 @@ def _binance_klines(
         params={"symbol": pair, "interval": interval, "limit": limit},
         timeout=12.0,
     )
+    if resp.status_code in (418, 429):
+        raise httpx.HTTPStatusError(
+            f"Binance IP ban/rate-limit ({resp.status_code}) for {pair}",
+            request=resp.request,
+            response=resp,
+        )
     resp.raise_for_status()
     candles = []
     for k in resp.json():
@@ -683,6 +728,16 @@ def get_quotes(symbols: list[str]) -> list[dict]:
                 live[sym] = quote
         except Exception as exc:
             logger.warning("binance quotes failed: %s", exc)
+        # For any crypto Binance couldn't price (418 / rate-limit), fail over
+        # to Twelve Data before dropping to the synthetic price floor below.
+        failed_crypto = [s for s in uncached_crypto if s not in live]
+        if failed_crypto and settings.twelve_data_api_key:
+            try:
+                for sym, quote in _twelvedata_quotes(failed_crypto).items():
+                    _cache_put(f"quote:{sym}", quote)
+                    live[sym] = quote
+            except Exception as exc:
+                logger.warning("twelvedata crypto quote fallback failed: %s", exc)
 
     # Stocks (and anything Binance couldn't quote) via Twelve Data when live.
     if settings.market_data_live:  # pragma: no cover
@@ -763,6 +818,24 @@ def _detail_series(symbol: str) -> tuple[list[float], float, float, float, str]:
             return _binance_detail_series(symbol)
         except Exception as exc:
             logger.warning("binance detail series failed for %s: %s", symbol, exc)
+            # Twelve Data supports BTC/USD, ETH/USD etc. — use it as a direct
+            # crypto fallback whenever Binance is blocked (418/429), even when
+            # market_data_live is False.
+            if settings.twelve_data_api_key:
+                try:
+                    closes, high, low, volume = _twelvedata_series(symbol)
+                    logger.info(
+                        "crypto detail %s via twelvedata (binance fallback): %d pts",
+                        symbol,
+                        len(closes),
+                    )
+                    return closes, high, low, volume, "twelvedata"
+                except Exception as td_exc:
+                    logger.warning(
+                        "twelvedata detail fallback failed for %s: %s",
+                        symbol,
+                        td_exc,
+                    )
     if settings.market_data_live:  # pragma: no cover
         for name, fetch in (
             ("twelvedata", _twelvedata_series),
