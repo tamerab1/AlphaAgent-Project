@@ -32,6 +32,11 @@ def _get_or_create_profile(db: Session, user_id: UUID) -> Profile:
 
 
 def _get_or_create_portfolio(db: Session, user_id: UUID) -> Portfolio:
+    # Satisfy the portfolios_user_id_fkey constraint: the profiles row must
+    # exist before we can insert a portfolio.  This matters for paper-trading
+    # sessions where deps.py returns a synthetic UUID that has no Supabase
+    # account behind it.
+    _get_or_create_profile(db, user_id)
     portfolio = db.query(Portfolio).filter(Portfolio.user_id == user_id).first()
     if portfolio is None:
         portfolio = Portfolio(
