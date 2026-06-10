@@ -1,4 +1,6 @@
+import asyncio
 import json
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
@@ -9,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.agents import build_graph
 from app.api.deps import get_optional_user_id, get_portfolio_or_404, loads_json
+from app.core.config import settings
 from app.db.session import get_db
 from app.models import AgentRun, Portfolio, Position, Trade
 from app.schemas.agent import ChartReading, PortfolioSnapshot
@@ -16,6 +19,13 @@ from app.schemas.api import AgentRunOut, AnalyzeRequest, ChartReadRequest, NewsI
 from app.services import llm, market_data
 
 _DEFAULT_NEWS_SYMBOLS = ["BTC", "ETH", "SOL", "NVDA", "AAPL", "TSLA", "MSFT", "SPY"]
+
+# Short-term in-memory cache — prevents re-running the full LangGraph pipeline
+# for the same symbol within the TTL window (Render free-tier resource guard).
+# Gated on openai_api_key so mock/test runs always execute fresh; only live
+# LLM calls are expensive enough to need this protection.
+_ANALYSIS_CACHE: dict[str, tuple[float, list[dict]]] = {}
+_ANALYSIS_TTL = 120.0  # seconds
 
 router = APIRouter(prefix="/api", tags=["ai"])
 
@@ -110,18 +120,49 @@ async def analyze_chart(
         "portfolio": snapshot,
         "chart_image": body.chart_image,
     }
+    cache_key = body.symbol.upper()
 
     async def event_stream():
+        # ── Cache hit (live LLM mode only): replay events without re-running ──
+        if settings.openai_api_key:
+            hit = _ANALYSIS_CACHE.get(cache_key)
+            if hit and (time.monotonic() - hit[0]) < _ANALYSIS_TTL:
+                for ev in hit[1]:
+                    yield f"data: {json.dumps(ev)}\n\n"
+                cached_done = {"node": "done", "executed": False, "cached": True}
+                yield f"data: {json.dumps(cached_done)}\n\n"
+                return
+
+        # ── Live run with a hard total-budget timeout guard ──
         final: dict = {}
-        async for event in graph.astream_events(state, version="v2"):
-            if event.get("event") != "on_chain_end":
-                continue
-            name = event.get("name")
-            output = event["data"].get("output")
-            if name not in NODE_NAMES or not isinstance(output, dict):
-                continue
-            final.update(output)
-            yield f"data: {json.dumps(_node_payload(name, output))}\n\n"
+        collected: list[dict] = []
+        timed_out = False
+        try:
+            async with asyncio.timeout(35.0):
+                async for event in graph.astream_events(state, version="v2"):
+                    if event.get("event") != "on_chain_end":
+                        continue
+                    name = event.get("name")
+                    output = event["data"].get("output")
+                    if name not in NODE_NAMES or not isinstance(output, dict):
+                        continue
+                    final.update(output)
+                    payload = _node_payload(name, output)
+                    collected.append(payload)
+                    yield f"data: {json.dumps(payload)}\n\n"
+        except TimeoutError:
+            timed_out = True
+            for ev in _timeout_fallback(cache_key):
+                yield f"data: {json.dumps(ev)}\n\n"
+
+        if timed_out:
+            yield f"data: {json.dumps({'node': 'done', 'executed': False})}\n\n"
+            return
+
+        # ── Cache successful result (live LLM only — mock runs are instant) ──
+        if collected and settings.openai_api_key:
+            _ANALYSIS_CACHE[cache_key] = (time.monotonic(), collected)
+
         with Session(bind=bind) as write_db:
             portfolio_row = write_db.get(Portfolio, portfolio_id)
             if portfolio_row is not None:
@@ -137,6 +178,65 @@ async def analyze_chart(
         yield f"data: {json.dumps(done)}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+def _timeout_fallback(symbol: str) -> list[dict]:
+    """Mock event sequence streamed when the LangGraph pipeline exceeds its budget."""
+    return [
+        {
+            "node": "ingest",
+            "message": f"Market intelligence for {symbol} (timeout — cached signals).",
+        },
+        {
+            "node": "bull_agent",
+            "bull": {
+                "stance": "bull",
+                "thesis": f"Live analysis for {symbol} could not complete in time.",
+                "key_points": ["Pipeline timeout — using fallback signals."],
+                "conviction": 0.0,
+            },
+            "message": f"Bull: Live analysis for {symbol} timed out.",
+        },
+        {
+            "node": "bear_agent",
+            "bear": {
+                "stance": "bear",
+                "thesis": f"Live analysis for {symbol} could not complete in time.",
+                "key_points": ["Pipeline timeout — using fallback signals."],
+                "conviction": 0.0,
+            },
+            "message": f"Bear: Live analysis for {symbol} timed out.",
+        },
+        {
+            "node": "judge_agent",
+            "analyst": {
+                "action": "HOLD",
+                "symbol": symbol,
+                "reasoning": (
+                    "Pipeline timed out — defaulting to HOLD to avoid "
+                    "uninformed execution."
+                ),
+                "confidence": 0.0,
+                "suggested_pct": 0.0,
+                "target_price": None,
+                "stop_loss": None,
+            },
+            "message": "HOLD — pipeline timeout.",
+        },
+        {
+            "node": "risk_agent",
+            "risk": {
+                "approved": False,
+                "reason": "Analysis timed out — no trade executed.",
+                "adjusted_pct": 0.0,
+            },
+            "message": "Risk: trade rejected (timeout).",
+        },
+        {
+            "node": "log_rejection",
+            "message": "Trade not executed: analysis timed out.",
+        },
+    ]
 
 
 def _portfolio_snapshot(portfolio: Portfolio, symbol: str) -> PortfolioSnapshot:

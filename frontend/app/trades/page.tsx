@@ -232,6 +232,11 @@ export default function TradesPage() {
   const [loadingTrades, setLoadingTrades] = useState(true);
   const [refreshing,    setRefreshing]    = useState(false);
 
+  // Defer the analysis panel until after the trade form's first paint so the
+  // form is always interactive before any SSE connection is attempted.
+  const [panelReady, setPanelReady] = useState(false);
+  useEffect(() => { setPanelReady(true); }, []);
+
   // ── Form ──
   const [side,         setSide]         = useState<"BUY" | "SELL">("BUY");
   const [symbol,       setSymbol]       = useState("BTC");
@@ -502,7 +507,7 @@ export default function TradesPage() {
           </div>
 
           {/* ── Right: AI Analysis Panel ── */}
-          {portfolioId !== null ? (
+          {panelReady && portfolioId !== null ? (
             <AnalysisPanel
               portfolioId={portfolioId}
               defaultSymbol={symbol}
@@ -510,11 +515,49 @@ export default function TradesPage() {
             />
           ) : (
             <div className="animate-pulse rounded-xl border border-border bg-surface">
-              <div className="border-b border-border px-4 py-3">
-                <div className="h-3 w-36 rounded bg-surface2" />
+              {/* Header shimmer */}
+              <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+                <div className="h-4 w-4 rounded bg-surface2" />
+                <div className="h-3 w-28 rounded bg-surface2" />
+                <div className="h-4 w-16 rounded-full bg-surface2" />
               </div>
-              <div className="flex h-64 items-center justify-center">
-                <div className="h-4 w-48 rounded bg-surface2" />
+              <div className="space-y-4 p-4">
+                {/* Step 1 — chart upload block */}
+                <div className="space-y-2 rounded-lg border border-border/60 bg-surface2/40 p-3.5">
+                  <div className="h-3 w-52 rounded bg-surface2" />
+                  <div className="h-3 w-64 rounded bg-surface2" />
+                  <div className="h-7 w-28 rounded-lg bg-surface2" />
+                </div>
+                {/* Step 2 — controls row */}
+                <div className="flex items-end justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="h-3 w-44 rounded bg-surface2" />
+                    <div className="h-3 w-60 rounded bg-surface2" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-20 rounded-lg bg-surface2" />
+                    <div className="h-8 w-28 rounded-lg bg-surface2" />
+                  </div>
+                </div>
+                {/* Quick-pick chips */}
+                <div className="flex items-center gap-1.5">
+                  <div className="h-3 w-16 rounded bg-surface2" />
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="h-5 w-10 rounded-full bg-surface2" />
+                  ))}
+                </div>
+                {/* Placeholder event rows */}
+                <div className="space-y-2 border-t border-border pt-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex gap-2.5">
+                      <div className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded bg-surface2" />
+                      <div className="flex-1 space-y-1">
+                        <div className="h-3 rounded bg-surface2" style={{ width: `${55 + i * 12}%` }} />
+                        <div className="h-2.5 rounded bg-surface2" style={{ width: `${40 + i * 8}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}

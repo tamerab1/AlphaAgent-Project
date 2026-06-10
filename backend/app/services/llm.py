@@ -302,7 +302,7 @@ def _llm_analyze(
     from langchain_openai import ChatOpenAI
 
     structured = ChatOpenAI(
-        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key
+        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key, timeout=8.0
     ).with_structured_output(AnalystDecision)
     system = ANALYST_SYSTEM + (ANALYST_VISION_HINT if chart_image else "")
     technicals = _format_technicals(market)
@@ -328,7 +328,7 @@ def _llm_risk_note(
     from langchain_openai import ChatOpenAI
 
     llm = ChatOpenAI(
-        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key
+        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key, timeout=8.0
     )
     prompt = (
         f"{RISK_SYSTEM}\n\nProposed: {decision.action} {market.symbol} "
@@ -387,7 +387,7 @@ def _llm_debate(
     from langchain_openai import ChatOpenAI
 
     structured = ChatOpenAI(
-        model="gpt-4o-mini", temperature=0.3, api_key=settings.openai_api_key
+        model="gpt-4o-mini", temperature=0.3, api_key=settings.openai_api_key, timeout=8.0
     ).with_structured_output(DebateArgument)
     system = BULL_SYSTEM if stance == "bull" else BEAR_SYSTEM
     text = (
@@ -412,7 +412,7 @@ def _llm_judge(
     from langchain_openai import ChatOpenAI
 
     structured = ChatOpenAI(
-        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key
+        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key, timeout=8.0
     ).with_structured_output(AnalystDecision)
     system = JUDGE_SYSTEM + (ANALYST_VISION_HINT if chart_image else "")
     text = (
@@ -444,7 +444,7 @@ def _llm_assess_risk(
     from langchain_openai import ChatOpenAI
 
     structured = ChatOpenAI(
-        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key
+        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key, timeout=8.0
     ).with_structured_output(RiskDecision)
     text = (
         f"{RISK_MANAGER_SYSTEM}\n\n"
@@ -512,7 +512,7 @@ def _llm_sentiment(headline: str, symbol: str) -> SentimentResult:  # pragma: no
     from langchain_openai import ChatOpenAI
 
     structured = ChatOpenAI(
-        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key
+        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key, timeout=8.0
     ).with_structured_output(SentimentResult)
     prompt = f"{NEWS_SENTIMENT_SYSTEM}\n\nSymbol: {symbol}\nHeadline: {headline}"
     return structured.invoke(prompt)
@@ -538,7 +538,7 @@ def _llm_read_chart(
     from langchain_openai import ChatOpenAI
 
     structured = ChatOpenAI(
-        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key
+        model="gpt-4o-mini", temperature=0, api_key=settings.openai_api_key, timeout=8.0
     ).with_structured_output(ChartReading)
     text = CHART_READER_SYSTEM + (f"\nSymbol: {symbol}" if symbol else "")
     content = [
