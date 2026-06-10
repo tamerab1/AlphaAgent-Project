@@ -98,24 +98,34 @@ def get_my_trades(
     db: Session = Depends(get_db),
 ) -> list[TradeOut]:
     """Return all trades belonging strictly to the authenticated user."""
-    trades = (
-        db.query(Trade)
-        .filter(Trade.user_id == user_id)
-        .order_by(Trade.created_at.desc())
-        .all()
-    )
-    return [
-        TradeOut(
-            id=t.id,
-            symbol=t.symbol,
-            side=t.side,
-            qty=t.qty,
-            price=t.price,
-            rationale=t.rationale,
-            created_at=t.created_at,
+    # Clear any pending-rollback state on a recycled pool connection before
+    # issuing the query — guards against f405 PendingRollbackError.
+    db.rollback()
+    try:
+        rows = (
+            db.query(Trade)
+            .filter(Trade.user_id == user_id)
+            .order_by(Trade.created_at.desc())
+            .all()
         )
-        for t in trades
-    ]
+        return [
+            TradeOut(
+                id=t.id,
+                symbol=t.symbol,
+                side=t.side,
+                qty=t.qty,
+                price=t.price,
+                rationale=t.rationale,
+                created_at=t.created_at,
+            )
+            for t in rows
+        ]
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not load trade history — please retry.",
+        )
 
 
 @router.post("/me/trade", response_model=TradeExecuted, status_code=201)
@@ -123,120 +133,122 @@ def execute_manual_trade(
     body: ManualTradeRequest,
     user_id: UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db),
-) -> TradeOut:
+) -> TradeExecuted:
     """Execute a manual paper trade at live market price."""
-    # Discard any aborted-transaction state left on a recycled pool connection.
-    # Idempotent on a clean session; essential when a prior request failed mid-
-    # transaction and get_db closed without rolling back.
+    # Discard any aborted-transaction state on a recycled pool connection.
+    # Must happen before the first query so _get_or_create_portfolio is clean.
     db.rollback()
-    portfolio = _get_or_create_portfolio(db, user_id)
-    symbol = body.symbol.upper()
-
-    price = market_data.get_execution_price(symbol)
-    if price <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"No price data for {symbol}",
-        )
-    if body.usd_amount <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Amount must be positive",
-        )
-
-    qty = body.usd_amount / price
-
-    if body.side == "BUY":
-        if body.usd_amount > portfolio.cash_balance:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Insufficient cash balance. "
-                    f"Available: ${portfolio.cash_balance:,.2f}"
-                ),
-            )
-        portfolio.cash_balance -= body.usd_amount
-        existing = (
-            db.query(Position)
-            .filter(
-                Position.portfolio_id == portfolio.id,
-                Position.symbol == symbol,
-            )
-            .first()
-        )
-        if existing:
-            new_qty = existing.qty + qty
-            existing.avg_price = (
-                (existing.avg_price * existing.qty + price * qty) / new_qty
-                if new_qty
-                else price
-            )
-            existing.qty = new_qty
-        else:
-            db.add(
-                Position(
-                    portfolio_id=portfolio.id,
-                    symbol=symbol,
-                    qty=qty,
-                    avg_price=price,
-                )
-            )
-    else:  # SELL
-        existing = (
-            db.query(Position)
-            .filter(
-                Position.portfolio_id == portfolio.id,
-                Position.symbol == symbol,
-            )
-            .first()
-        )
-        available = existing.qty if existing else 0.0
-        if existing is None or existing.qty < qty:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    f"Insufficient position. "
-                    f"Have {available:.4f} {symbol} "
-                    f"(need {qty:.4f})"
-                ),
-            )
-        portfolio.cash_balance += body.usd_amount
-        existing.qty -= qty
-
-    # Snapshot the balance after arithmetic; portfolio attributes are expired by
-    # db.commit() below, so capture the value now while it is still in-memory.
-    new_cash_balance = portfolio.cash_balance
-
-    trade = Trade(
-        portfolio_id=portfolio.id,
-        user_id=user_id,
-        symbol=symbol,
-        side=body.side,
-        qty=qty,
-        price=price,
-        rationale="Manual trade",
-    )
     try:
+        portfolio = _get_or_create_portfolio(db, user_id)
+        symbol = body.symbol.upper()
+
+        price = market_data.get_execution_price(symbol)
+        if price <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No price data for {symbol}",
+            )
+        if body.usd_amount <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Amount must be positive",
+            )
+
+        qty = body.usd_amount / price
+
+        if body.side == "BUY":
+            if body.usd_amount > portfolio.cash_balance:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Insufficient cash balance. "
+                        f"Available: ${portfolio.cash_balance:,.2f}"
+                    ),
+                )
+            portfolio.cash_balance -= body.usd_amount
+            existing = (
+                db.query(Position)
+                .filter(
+                    Position.portfolio_id == portfolio.id,
+                    Position.symbol == symbol,
+                )
+                .first()
+            )
+            if existing:
+                new_qty = existing.qty + qty
+                existing.avg_price = (
+                    (existing.avg_price * existing.qty + price * qty) / new_qty
+                    if new_qty
+                    else price
+                )
+                existing.qty = new_qty
+            else:
+                db.add(
+                    Position(
+                        portfolio_id=portfolio.id,
+                        symbol=symbol,
+                        qty=qty,
+                        avg_price=price,
+                    )
+                )
+        else:  # SELL
+            existing = (
+                db.query(Position)
+                .filter(
+                    Position.portfolio_id == portfolio.id,
+                    Position.symbol == symbol,
+                )
+                .first()
+            )
+            available = existing.qty if existing else 0.0
+            if existing is None or existing.qty < qty:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Insufficient position. "
+                        f"Have {available:.4f} {symbol} "
+                        f"(need {qty:.4f})"
+                    ),
+                )
+            portfolio.cash_balance += body.usd_amount
+            existing.qty -= qty
+
+        # Snapshot the balance now — db.commit() below expires all ORM attributes,
+        # so reading portfolio.cash_balance after commit would trigger a lazy reload.
+        new_cash_balance = portfolio.cash_balance
+
+        trade = Trade(
+            portfolio_id=portfolio.id,
+            user_id=user_id,
+            symbol=symbol,
+            side=body.side,
+            qty=qty,
+            price=price,
+            rationale="Manual trade",
+        )
         db.add(trade)
         db.flush()
         db.commit()
         db.refresh(trade)
+
+        return TradeExecuted(
+            updated_cash_balance=new_cash_balance,
+            trade=TradeOut(
+                id=trade.id,
+                symbol=trade.symbol,
+                side=trade.side,
+                qty=trade.qty,
+                price=trade.price,
+                rationale=trade.rationale,
+                created_at=trade.created_at,
+            ),
+        )
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Trade could not be saved — please retry.",
         )
-
-    return TradeExecuted(
-        updated_cash_balance=new_cash_balance,
-        trade=TradeOut(
-            id=trade.id,
-            symbol=trade.symbol,
-            side=trade.side,
-            qty=trade.qty,
-            price=trade.price,
-            rationale=trade.rationale,
-            created_at=trade.created_at,
-        ),
-    )
