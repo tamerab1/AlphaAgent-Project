@@ -53,7 +53,8 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\tamer\\\\AlphaAgentV1\\\\AlphaAgent-Project\" -Recurse -Directory)",
       "Bash(black --check .)",
       "Bash(python -m black --check app/models/trade.py app/schemas/api.py app/api/portfolio.py app/api/users.py app/api/ai.py tests/conftest.py tests/test_models.py tests/test_routes.py)",
-      "Bash(python -m black app/api/users.py)"
+      "Bash(python -m black app/api/users.py)",
+      "Bash(python -m flake8 tests/conftest.py)"
     ]
   }
 }
