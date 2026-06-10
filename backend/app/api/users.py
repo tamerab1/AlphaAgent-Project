@@ -212,8 +212,9 @@ def execute_manual_trade(
         price=price,
         rationale="Manual trade",
     )
-    db.add(trade)
     try:
+        db.add(trade)
+        db.flush()
         db.commit()
         db.refresh(trade)
     except Exception:

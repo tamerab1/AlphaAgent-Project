@@ -50,7 +50,8 @@
       "Bash(python -m pytest tests/ -x -q)",
       "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}, indent=2\\)\\)\")",
       "Bash(python -m pytest tests/ -v --collect-only)",
-      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\tamer\\\\AlphaAgentV1\\\\AlphaAgent-Project\" -Recurse -Directory)"
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\tamer\\\\AlphaAgentV1\\\\AlphaAgent-Project\" -Recurse -Directory)",
+      "Bash(black --check .)"
     ]
   }
 }
