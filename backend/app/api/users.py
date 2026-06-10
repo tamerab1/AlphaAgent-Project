@@ -9,7 +9,7 @@ from app.models.portfolio import Portfolio
 from app.models.position import Position
 from app.models.profile import Profile
 from app.models.trade import Trade
-from app.schemas.api import ManualTradeRequest, PortfolioOut, TradeOut
+from app.schemas.api import ManualTradeRequest, PortfolioOut, TradeExecuted, TradeOut
 from app.schemas.profile import ProfileRead, ProfileUpdate
 from app.services import market_data
 
@@ -118,7 +118,7 @@ def get_my_trades(
     ]
 
 
-@router.post("/me/trade", response_model=TradeOut, status_code=201)
+@router.post("/me/trade", response_model=TradeExecuted, status_code=201)
 def execute_manual_trade(
     body: ManualTradeRequest,
     user_id: UUID = Depends(get_current_user_id),
@@ -203,6 +203,10 @@ def execute_manual_trade(
         portfolio.cash_balance += body.usd_amount
         existing.qty -= qty
 
+    # Snapshot the balance after arithmetic; portfolio attributes are expired by
+    # db.commit() below, so capture the value now while it is still in-memory.
+    new_cash_balance = portfolio.cash_balance
+
     trade = Trade(
         portfolio_id=portfolio.id,
         user_id=user_id,
@@ -224,12 +228,15 @@ def execute_manual_trade(
             detail="Trade could not be saved — please retry.",
         )
 
-    return TradeOut(
-        id=trade.id,
-        symbol=trade.symbol,
-        side=trade.side,
-        qty=trade.qty,
-        price=trade.price,
-        rationale=trade.rationale,
-        created_at=trade.created_at,
+    return TradeExecuted(
+        updated_cash_balance=new_cash_balance,
+        trade=TradeOut(
+            id=trade.id,
+            symbol=trade.symbol,
+            side=trade.side,
+            qty=trade.qty,
+            price=trade.price,
+            rationale=trade.rationale,
+            created_at=trade.created_at,
+        ),
     )

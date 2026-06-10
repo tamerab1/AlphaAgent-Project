@@ -45,6 +45,12 @@ class TradeOut(BaseModel):
     created_at: datetime
 
 
+class TradeExecuted(BaseModel):
+    status: str = "success"
+    updated_cash_balance: float
+    trade: TradeOut
+
+
 # --- AI ----------------------------------------------------------------------
 class AnalyzeRequest(BaseModel):
     symbol: str
