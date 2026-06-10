@@ -32,11 +32,12 @@ def _get_or_create_profile(db: Session, user_id: UUID) -> Profile:
 
 
 def _get_or_create_portfolio(db: Session, user_id: UUID) -> Portfolio:
-    # Satisfy the portfolios_user_id_fkey constraint: the profiles row must
-    # exist before we can insert a portfolio.  This matters for paper-trading
-    # sessions where deps.py returns a synthetic UUID that has no Supabase
-    # account behind it.
-    _get_or_create_profile(db, user_id)
+    # Satisfy portfolios_user_id_fkey without a premature COMMIT: flush the
+    # profile into the current transaction so the FK is resolvable when the
+    # portfolio row is inserted in the same commit below.
+    if db.get(Profile, user_id) is None:
+        db.add(Profile(id=user_id))
+        db.flush()
     portfolio = db.query(Portfolio).filter(Portfolio.user_id == user_id).first()
     if portfolio is None:
         portfolio = Portfolio(
@@ -124,6 +125,10 @@ def execute_manual_trade(
     db: Session = Depends(get_db),
 ) -> TradeOut:
     """Execute a manual paper trade at live market price."""
+    # Discard any aborted-transaction state left on a recycled pool connection.
+    # Idempotent on a clean session; essential when a prior request failed mid-
+    # transaction and get_db closed without rolling back.
+    db.rollback()
     portfolio = _get_or_create_portfolio(db, user_id)
     symbol = body.symbol.upper()
 
@@ -208,8 +213,15 @@ def execute_manual_trade(
         rationale="Manual trade",
     )
     db.add(trade)
-    db.commit()
-    db.refresh(trade)
+    try:
+        db.commit()
+        db.refresh(trade)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Trade could not be saved — please retry.",
+        )
 
     return TradeOut(
         id=trade.id,
